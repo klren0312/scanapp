@@ -2,6 +2,7 @@ plugins {
     kotlin("multiplatform")
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
     id("com.android.library")
+    id("app.cash.sqldelight") version "2.0.1"
 }
 
 kotlin {
@@ -43,10 +44,20 @@ ksp {
     arg("moduleId", "shared")
 }
 
+sqldelight {
+    databases {
+        create("ScanAppDatabase") {
+            packageName.set("com.example.scanapp.db")
+        }
+    }
+}
+
 dependencies {
     add("kspCommonMainMetadata", "com.tencent.kuikly:core-ksp:2.0.0")
     // Kuikly core dependency
     commonMainImplementation("com.tencent.kuikly:core:2.0.0")
+    // SQLDelight coroutines extensions
+    commonMainImplementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
     // Test dependencies
     commonTestImplementation("kotlin-test")
     commonTestImplementation("kotlin-test-common")

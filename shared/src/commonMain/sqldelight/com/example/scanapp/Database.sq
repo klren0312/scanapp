@@ -1,0 +1,74 @@
+CREATE TABLE WifiScanRecord (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ssid TEXT NOT NULL,
+    bssid TEXT NOT NULL,
+    signalStrength INTEGER NOT NULL,
+    frequency INTEGER NOT NULL,
+    timestamp INTEGER NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE BluetoothScanRecord (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    rssi INTEGER NOT NULL,
+    deviceType TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE LocationRecord (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    altitude REAL NOT NULL,
+    accuracy REAL NOT NULL,
+    timestamp INTEGER NOT NULL
+);
+
+selectAllWifiRecords:
+SELECT * FROM WifiScanRecord ORDER BY timestamp DESC;
+
+selectWifiByBssid:
+SELECT * FROM WifiScanRecord WHERE bssid = ?;
+
+selectAllBluetoothRecords:
+SELECT * FROM BluetoothScanRecord ORDER BY timestamp DESC;
+
+selectBluetoothByAddress:
+SELECT * FROM BluetoothScanRecord WHERE address = ?;
+
+selectAllLocationRecords:
+SELECT * FROM LocationRecord ORDER BY timestamp DESC;
+
+insertWifiRecord:
+INSERT INTO WifiScanRecord (ssid, bssid, signalStrength, frequency, timestamp, latitude, longitude, count)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateWifiCount:
+UPDATE WifiScanRecord SET count = count + 1 WHERE bssid = ?;
+
+insertBluetoothRecord:
+INSERT INTO BluetoothScanRecord (name, address, rssi, deviceType, timestamp, latitude, longitude, count)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateBluetoothCount:
+UPDATE BluetoothScanRecord SET count = count + 1 WHERE address = ?;
+
+insertLocationRecord:
+INSERT INTO LocationRecord (latitude, longitude, altitude, accuracy, timestamp)
+VALUES (?, ?, ?, ?, ?);
+
+deleteAllWifiRecords:
+DELETE FROM WifiScanRecord;
+
+deleteAllBluetoothRecords:
+DELETE FROM BluetoothScanRecord;
+
+deleteAllLocationRecords:
+DELETE FROM LocationRecord;
