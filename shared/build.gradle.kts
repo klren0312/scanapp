@@ -62,6 +62,11 @@ kotlin {
                 implementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
             }
         }
+        val androidUnitTest by getting {
+            dependencies {
+                implementation("app.cash.sqldelight:sqlite-driver:2.0.1")
+            }
+        }
     }
 }
 
