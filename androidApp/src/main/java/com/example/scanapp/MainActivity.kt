@@ -6,12 +6,13 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = ViewGroup.LayoutParams(
@@ -20,7 +21,7 @@ class MainActivity : AppCompatActivity() {
             )
             setPadding(50, 50, 50, 50)
         }
-        
+
         val titleText = TextView(this).apply {
             text = "WiFi/蓝牙扫描器"
             textSize = 24f
@@ -29,7 +30,7 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        
+
         val scanButton = Button(this).apply {
             text = "开始扫描"
             layoutParams = LinearLayout.LayoutParams(
@@ -39,10 +40,10 @@ class MainActivity : AppCompatActivity() {
                 topMargin = 50
             }
             setOnClickListener {
-                KuiklyRenderActivity.start(this@MainActivity, "Scanner")
+                navigateWithPermissionCheck("Scanner")
             }
         }
-        
+
         val deviceListButton = Button(this).apply {
             text = "设备列表"
             layoutParams = LinearLayout.LayoutParams(
@@ -52,10 +53,10 @@ class MainActivity : AppCompatActivity() {
                 topMargin = 20
             }
             setOnClickListener {
-                KuiklyRenderActivity.start(this@MainActivity, "DeviceList")
+                navigateWithPermissionCheck("DeviceList")
             }
         }
-        
+
         val statisticsButton = Button(this).apply {
             text = "统计信息"
             layoutParams = LinearLayout.LayoutParams(
@@ -65,10 +66,10 @@ class MainActivity : AppCompatActivity() {
                 topMargin = 20
             }
             setOnClickListener {
-                KuiklyRenderActivity.start(this@MainActivity, "Statistics")
+                navigateWithPermissionCheck("Statistics")
             }
         }
-        
+
         val mapButton = Button(this).apply {
             text = "地图视图"
             layoutParams = LinearLayout.LayoutParams(
@@ -78,10 +79,10 @@ class MainActivity : AppCompatActivity() {
                 topMargin = 20
             }
             setOnClickListener {
-                KuiklyRenderActivity.start(this@MainActivity, "Map")
+                navigateWithPermissionCheck("Map")
             }
         }
-        
+
         val settingsButton = Button(this).apply {
             text = "设置"
             layoutParams = LinearLayout.LayoutParams(
@@ -94,14 +95,33 @@ class MainActivity : AppCompatActivity() {
                 KuiklyRenderActivity.start(this@MainActivity, "Settings")
             }
         }
-        
+
         layout.addView(titleText)
         layout.addView(scanButton)
         layout.addView(deviceListButton)
         layout.addView(statisticsButton)
         layout.addView(mapButton)
         layout.addView(settingsButton)
-        
+
         setContentView(layout)
+    }
+
+    private fun navigateWithPermissionCheck(pageName: String) {
+        if (PermissionHelper.hasAllPermissions(this)) {
+            KuiklyRenderActivity.start(this, pageName)
+            return
+        }
+
+        PermissionHelper.checkAndRequestPermissions(this) { granted ->
+            if (granted) {
+                KuiklyRenderActivity.start(this, pageName)
+            } else {
+                Toast.makeText(
+                    this,
+                    "需要授予权限才能使用此功能",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 }
