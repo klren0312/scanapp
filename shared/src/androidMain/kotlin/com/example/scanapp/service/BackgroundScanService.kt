@@ -68,7 +68,7 @@ class BackgroundScanService : Service() {
 
                 val database = DatabaseFactory.getDatabase()
                 val bluetoothDao = BluetoothScanDao(database)
-                bluetoothDao.insertOrUpdate(recordWithLocation)
+                bluetoothDao.insertBatch(listOf(recordWithLocation))
             }
         }
     }

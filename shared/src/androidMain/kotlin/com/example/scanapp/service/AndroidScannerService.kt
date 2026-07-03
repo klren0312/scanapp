@@ -43,13 +43,13 @@ class AndroidScannerService(
         val devices = wifiScanner.scanWifiNetworks()
         _wifiDevices.value = devices
         val location = locationService.getCurrentLocation()
-        devices.forEach { device ->
-            val deviceWithLocation = device.copy(
+        val devicesWithLocation = devices.map { device ->
+            device.copy(
                 latitude = location?.latitude ?: 0.0,
                 longitude = location?.longitude ?: 0.0
             )
-            wifiDao.insertOrUpdate(deviceWithLocation)
         }
+        wifiDao.insertBatch(devicesWithLocation)
     }
 
     override suspend fun stopWifiScan() {
@@ -64,7 +64,7 @@ class AndroidScannerService(
                     latitude = location?.latitude ?: 0.0,
                     longitude = location?.longitude ?: 0.0
                 )
-                bluetoothDao.insertOrUpdate(recordWithLocation)
+                bluetoothDao.insertBatch(listOf(recordWithLocation))
                 _bluetoothDevices.value = bluetoothDao.getAllRecords()
             }
         }
@@ -85,7 +85,7 @@ class AndroidScannerService(
                     latitude = location?.latitude ?: 0.0,
                     longitude = location?.longitude ?: 0.0
                 )
-                bluetoothDao.insertOrUpdate(recordWithLocation)
+                bluetoothDao.insertBatch(listOf(recordWithLocation))
                 _bluetoothDevices.value = bluetoothDao.getAllRecords()
             }
         }
@@ -97,17 +97,17 @@ class AndroidScannerService(
                 val wifiDevices = wifiScanner.scanWifiNetworks()
                 _wifiDevices.value = wifiDevices
 
-                // 获取当前位置
+                // 获取当前位置（一次获取，多次使用）
                 val location = locationService.getCurrentLocation()
 
-                // 保存WiFi到数据库
-                wifiDevices.forEach { device ->
-                    val deviceWithLocation = device.copy(
+                // 批量保存WiFi到数据库
+                val devicesWithLocation = wifiDevices.map { device ->
+                    device.copy(
                         latitude = location?.latitude ?: 0.0,
                         longitude = location?.longitude ?: 0.0
                     )
-                    wifiDao.insertOrUpdate(deviceWithLocation)
                 }
+                wifiDao.insertBatch(devicesWithLocation)
 
                 delay(5000) // 每5秒扫描一次
             }

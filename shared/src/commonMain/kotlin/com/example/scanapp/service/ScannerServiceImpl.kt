@@ -18,7 +18,8 @@ class ScannerServiceImpl(
     private val bluetoothDao: BluetoothScanDao,
     private val locationService: LocationService,
     private val onScanWifi: suspend () -> List<WifiScanRecord>,
-    private val onScanBluetooth: suspend () -> List<BluetoothScanRecord>
+    private val onScanBluetooth: suspend () -> List<BluetoothScanRecord>,
+    private val scanIntervalMs: Long = 5000L
 ) : ScannerService {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -58,15 +59,19 @@ class ScannerServiceImpl(
         _isScanning.value = true
         scanJob = scope.launch {
             while (true) {
-                val wifiDevices = onScanWifi()
-                _wifiDevices.value = wifiDevices
-                saveWifiDevices(wifiDevices)
+                try {
+                    val wifiDevices = onScanWifi()
+                    _wifiDevices.value = wifiDevices
+                    saveWifiDevices(wifiDevices)
 
-                val bluetoothDevices = onScanBluetooth()
-                _bluetoothDevices.value = bluetoothDevices
-                saveBluetoothDevices(bluetoothDevices)
-
-                delay(5000)
+                    val bluetoothDevices = onScanBluetooth()
+                    _bluetoothDevices.value = bluetoothDevices
+                    saveBluetoothDevices(bluetoothDevices)
+                } catch (e: Exception) {
+                    // Log error but continue scanning
+                    e.printStackTrace()
+                }
+                delay(scanIntervalMs)
             }
         }
     }
@@ -79,23 +84,23 @@ class ScannerServiceImpl(
 
     private suspend fun saveWifiDevices(devices: List<WifiScanRecord>) {
         val location = locationService.getCurrentLocation()
-        devices.forEach { device ->
-            val deviceWithLocation = device.copy(
+        val devicesWithLocation = devices.map { device ->
+            device.copy(
                 latitude = location?.latitude ?: 0.0,
                 longitude = location?.longitude ?: 0.0
             )
-            wifiDao.insertOrUpdate(deviceWithLocation)
         }
+        wifiDao.insertBatch(devicesWithLocation)
     }
 
     private suspend fun saveBluetoothDevices(devices: List<BluetoothScanRecord>) {
         val location = locationService.getCurrentLocation()
-        devices.forEach { device ->
-            val deviceWithLocation = device.copy(
+        val devicesWithLocation = devices.map { device ->
+            device.copy(
                 latitude = location?.latitude ?: 0.0,
                 longitude = location?.longitude ?: 0.0
             )
-            bluetoothDao.insertOrUpdate(deviceWithLocation)
         }
+        bluetoothDao.insertBatch(devicesWithLocation)
     }
 }

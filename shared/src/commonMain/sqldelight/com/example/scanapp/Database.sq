@@ -10,6 +10,10 @@ CREATE TABLE WifiScanRecord (
     count INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE INDEX idx_wifi_bssid ON WifiScanRecord(bssid);
+CREATE INDEX idx_wifi_timestamp ON WifiScanRecord(timestamp);
+CREATE INDEX idx_wifi_ssid ON WifiScanRecord(ssid);
+
 CREATE TABLE BluetoothScanRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -22,6 +26,10 @@ CREATE TABLE BluetoothScanRecord (
     count INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE INDEX idx_bluetooth_address ON BluetoothScanRecord(address);
+CREATE INDEX idx_bluetooth_timestamp ON BluetoothScanRecord(timestamp);
+CREATE INDEX idx_bluetooth_deviceType ON BluetoothScanRecord(deviceType);
+
 CREATE TABLE LocationRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     latitude REAL NOT NULL,
@@ -30,6 +38,8 @@ CREATE TABLE LocationRecord (
     accuracy REAL NOT NULL,
     timestamp INTEGER NOT NULL
 );
+
+CREATE INDEX idx_location_timestamp ON LocationRecord(timestamp);
 
 selectAllWifiRecords:
 SELECT * FROM WifiScanRecord ORDER BY timestamp DESC;
@@ -72,3 +82,30 @@ DELETE FROM BluetoothScanRecord;
 
 deleteAllLocationRecords:
 DELETE FROM LocationRecord;
+
+selectWifiRecordsPaginated:
+SELECT * FROM WifiScanRecord ORDER BY timestamp DESC LIMIT :limit OFFSET :offset;
+
+selectBluetoothRecordsPaginated:
+SELECT * FROM BluetoothScanRecord ORDER BY timestamp DESC LIMIT :limit OFFSET :offset;
+
+selectLocationRecordsPaginated:
+SELECT * FROM LocationRecord ORDER BY timestamp DESC LIMIT :limit OFFSET :offset;
+
+countWifiRecords:
+SELECT COUNT(*) FROM WifiScanRecord;
+
+countBluetoothRecords:
+SELECT COUNT(*) FROM BluetoothScanRecord;
+
+countLocationRecords:
+SELECT COUNT(*) FROM LocationRecord;
+
+selectWifiRecordsBySignalStrength:
+SELECT * FROM WifiScanRecord WHERE signalStrength > ? ORDER BY signalStrength DESC;
+
+selectBluetoothRecordsByType:
+SELECT * FROM BluetoothScanRecord WHERE deviceType = ? ORDER BY timestamp DESC;
+
+selectWifiRecordsByFrequency:
+SELECT * FROM WifiScanRecord WHERE frequency = ? ORDER BY timestamp DESC;

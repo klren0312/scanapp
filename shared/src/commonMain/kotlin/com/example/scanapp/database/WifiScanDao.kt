@@ -26,8 +26,82 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
+    suspend fun insertBatch(records: List<WifiScanRecord>) = withContext(Dispatchers.Default) {
+        database.transaction {
+            records.forEach { record ->
+                val existing = database.scanAppQueries.selectWifiByBssid(record.bssid).executeAsOneOrNull()
+                if (existing != null) {
+                    database.scanAppQueries.updateWifiCount(record.bssid)
+                } else {
+                    database.scanAppQueries.insertWifiRecord(
+                        ssid = record.ssid,
+                        bssid = record.bssid,
+                        signalStrength = record.signalStrength,
+                        frequency = record.frequency,
+                        timestamp = record.timestamp,
+                        latitude = record.latitude,
+                        longitude = record.longitude,
+                        count = record.count
+                    )
+                }
+            }
+        }
+    }
+
     suspend fun getAllRecords(): List<WifiScanRecord> = withContext(Dispatchers.Default) {
         database.scanAppQueries.selectAllWifiRecords().executeAsList().map {
+            WifiScanRecord(
+                id = it.id,
+                ssid = it.ssid,
+                bssid = it.bssid,
+                signalStrength = it.signalStrength,
+                frequency = it.frequency,
+                timestamp = it.timestamp,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                count = it.count
+            )
+        }
+    }
+
+    suspend fun getRecordsPaginated(limit: Int, offset: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+        database.scanAppQueries.selectWifiRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
+            WifiScanRecord(
+                id = it.id,
+                ssid = it.ssid,
+                bssid = it.bssid,
+                signalStrength = it.signalStrength,
+                frequency = it.frequency,
+                timestamp = it.timestamp,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                count = it.count
+            )
+        }
+    }
+
+    suspend fun getCount(): Long = withContext(Dispatchers.Default) {
+        database.scanAppQueries.countWifiRecords().executeAsOne()
+    }
+
+    suspend fun getRecordsBySignalStrength(minSignalStrength: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+        database.scanAppQueries.selectWifiRecordsBySignalStrength(minSignalStrength).executeAsList().map {
+            WifiScanRecord(
+                id = it.id,
+                ssid = it.ssid,
+                bssid = it.bssid,
+                signalStrength = it.signalStrength,
+                frequency = it.frequency,
+                timestamp = it.timestamp,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                count = it.count
+            )
+        }
+    }
+
+    suspend fun getRecordsByFrequency(frequency: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+        database.scanAppQueries.selectWifiRecordsByFrequency(frequency).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
                 ssid = it.ssid,

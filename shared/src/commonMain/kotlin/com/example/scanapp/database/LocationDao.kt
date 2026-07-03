@@ -17,6 +17,20 @@ class LocationDao(private val database: ScanAppDatabase) {
         )
     }
 
+    suspend fun insertBatch(records: List<LocationRecord>) = withContext(Dispatchers.Default) {
+        database.transaction {
+            records.forEach { record ->
+                database.scanAppQueries.insertLocationRecord(
+                    latitude = record.latitude,
+                    longitude = record.longitude,
+                    altitude = record.altitude,
+                    accuracy = record.accuracy,
+                    timestamp = record.timestamp
+                )
+            }
+        }
+    }
+
     suspend fun getAllRecords(): List<LocationRecord> = withContext(Dispatchers.Default) {
         database.scanAppQueries.selectAllLocationRecords().executeAsList().map {
             LocationRecord(
@@ -28,6 +42,23 @@ class LocationDao(private val database: ScanAppDatabase) {
                 timestamp = it.timestamp
             )
         }
+    }
+
+    suspend fun getRecordsPaginated(limit: Int, offset: Int): List<LocationRecord> = withContext(Dispatchers.Default) {
+        database.scanAppQueries.selectLocationRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
+            LocationRecord(
+                id = it.id,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                altitude = it.altitude,
+                accuracy = it.accuracy,
+                timestamp = it.timestamp
+            )
+        }
+    }
+
+    suspend fun getCount(): Long = withContext(Dispatchers.Default) {
+        database.scanAppQueries.countLocationRecords().executeAsOne()
     }
 
     suspend fun deleteAll() = withContext(Dispatchers.Default) {

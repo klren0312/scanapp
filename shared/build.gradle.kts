@@ -52,6 +52,18 @@ sqldelight {
     }
 }
 
+kotlin {
+    sourceSets {
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+                implementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
+            }
+        }
+    }
+}
+
 dependencies {
     add("kspCommonMainMetadata", "com.tencent.kuikly:core-ksp:2.0.0")
     // Kuikly core dependency
@@ -62,4 +74,6 @@ dependencies {
     commonTestImplementation("kotlin-test")
     commonTestImplementation("kotlin-test-common")
     commonTestImplementation("kotlin-test-annotations-common")
+    commonTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    commonTestImplementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
 }
