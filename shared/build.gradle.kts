@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    kotlin("plugin.serialization")
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
     id("com.android.library")
     id("app.cash.sqldelight") version "2.0.1"
@@ -70,6 +71,8 @@ dependencies {
     commonMainImplementation("com.tencent.kuikly:core:2.0.0")
     // SQLDelight coroutines extensions
     commonMainImplementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
+    // kotlinx serialization
+    commonMainImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     // Test dependencies
     commonTestImplementation("kotlin-test")
     commonTestImplementation("kotlin-test-common")

@@ -3,6 +3,18 @@ package com.example.scanapp.service
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+private val json = Json { prettyPrint = true }
+
+@Serializable
+private data class ExportData(
+    val wifiRecords: List<WifiScanRecord>,
+    val bluetoothRecords: List<BluetoothScanRecord>,
+    val locationRecords: List<LocationRecord>
+)
 
 class ExportServiceImpl : ExportService {
 
@@ -54,25 +66,9 @@ class ExportServiceImpl : ExportService {
         bluetoothRecords: List<BluetoothScanRecord>,
         locationRecords: List<LocationRecord>
     ): String {
-        val sb = StringBuilder()
-        sb.appendLine("{")
-        sb.appendLine("  \"wifiRecords\": [")
-        wifiRecords.forEachIndexed { index, record ->
-            sb.appendLine("    ${wifiRecordToJson(record)}${if (index < wifiRecords.lastIndex) "," else ""}")
-        }
-        sb.appendLine("  ],")
-        sb.appendLine("  \"bluetoothRecords\": [")
-        bluetoothRecords.forEachIndexed { index, record ->
-            sb.appendLine("    ${bluetoothRecordToJson(record)}${if (index < bluetoothRecords.lastIndex) "," else ""}")
-        }
-        sb.appendLine("  ],")
-        sb.appendLine("  \"locationRecords\": [")
-        locationRecords.forEachIndexed { index, record ->
-            sb.appendLine("    ${locationRecordToJson(record)}${if (index < locationRecords.lastIndex) "," else ""}")
-        }
-        sb.appendLine("  ]")
-        sb.appendLine("}")
-        return sb.toString()
+        return json.encodeToString(
+            ExportData(wifiRecords, bluetoothRecords, locationRecords)
+        )
     }
 
     override suspend fun shareFile(filePath: String) {
@@ -85,50 +81,5 @@ class ExportServiceImpl : ExportService {
         } else {
             value
         }
-    }
-
-    private fun wifiRecordToJson(record: WifiScanRecord): String {
-        return "{" +
-                "\"ssid\": \"${escapeJson(record.ssid)}\"," +
-                "\"bssid\": \"${escapeJson(record.bssid)}\"," +
-                "\"signalStrength\": ${record.signalStrength}," +
-                "\"frequency\": ${record.frequency}," +
-                "\"timestamp\": ${record.timestamp}," +
-                "\"latitude\": ${record.latitude}," +
-                "\"longitude\": ${record.longitude}," +
-                "\"count\": ${record.count}" +
-                "}"
-    }
-
-    private fun bluetoothRecordToJson(record: BluetoothScanRecord): String {
-        return "{" +
-                "\"name\": \"${escapeJson(record.name)}\"," +
-                "\"address\": \"${escapeJson(record.address)}\"," +
-                "\"rssi\": ${record.rssi}," +
-                "\"deviceType\": \"${escapeJson(record.deviceType)}\"," +
-                "\"timestamp\": ${record.timestamp}," +
-                "\"latitude\": ${record.latitude}," +
-                "\"longitude\": ${record.longitude}," +
-                "\"count\": ${record.count}" +
-                "}"
-    }
-
-    private fun locationRecordToJson(record: LocationRecord): String {
-        return "{" +
-                "\"latitude\": ${record.latitude}," +
-                "\"longitude\": ${record.longitude}," +
-                "\"altitude\": ${record.altitude}," +
-                "\"accuracy\": ${record.accuracy}," +
-                "\"timestamp\": ${record.timestamp}" +
-                "}"
-    }
-
-    private fun escapeJson(value: String): String {
-        return value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
     }
 }

@@ -8,42 +8,29 @@ import kotlinx.coroutines.withContext
 class WifiScanDao(private val database: ScanAppDatabase) {
 
     suspend fun insertOrUpdate(record: WifiScanRecord) = withContext(Dispatchers.Default) {
-        val existing = database.scanAppQueries.selectWifiByBssid(record.bssid).executeAsOneOrNull()
-
-        if (existing != null) {
-            database.scanAppQueries.updateWifiCount(record.bssid)
-        } else {
-            database.scanAppQueries.insertWifiRecord(
-                ssid = record.ssid,
-                bssid = record.bssid,
-                signalStrength = record.signalStrength,
-                frequency = record.frequency,
-                timestamp = record.timestamp,
-                latitude = record.latitude,
-                longitude = record.longitude,
-                count = record.count
-            )
-        }
+        database.scanAppQueries.wifiUpsert(
+            ssid = record.ssid,
+            bssid = record.bssid,
+            signalStrength = record.signalStrength,
+            frequency = record.frequency,
+            timestamp = record.timestamp,
+            latitude = record.latitude,
+            longitude = record.longitude
+        )
     }
 
     suspend fun insertBatch(records: List<WifiScanRecord>) = withContext(Dispatchers.Default) {
         database.transaction {
             records.forEach { record ->
-                val existing = database.scanAppQueries.selectWifiByBssid(record.bssid).executeAsOneOrNull()
-                if (existing != null) {
-                    database.scanAppQueries.updateWifiCount(record.bssid)
-                } else {
-                    database.scanAppQueries.insertWifiRecord(
-                        ssid = record.ssid,
-                        bssid = record.bssid,
-                        signalStrength = record.signalStrength,
-                        frequency = record.frequency,
-                        timestamp = record.timestamp,
-                        latitude = record.latitude,
-                        longitude = record.longitude,
-                        count = record.count
-                    )
-                }
+                database.scanAppQueries.wifiUpsert(
+                    ssid = record.ssid,
+                    bssid = record.bssid,
+                    signalStrength = record.signalStrength,
+                    frequency = record.frequency,
+                    timestamp = record.timestamp,
+                    latitude = record.latitude,
+                    longitude = record.longitude
+                )
             }
         }
     }

@@ -8,42 +8,29 @@ import kotlinx.coroutines.withContext
 class BluetoothScanDao(private val database: ScanAppDatabase) {
 
     suspend fun insertOrUpdate(record: BluetoothScanRecord) = withContext(Dispatchers.Default) {
-        val existing = database.scanAppQueries.selectBluetoothByAddress(record.address).executeAsOneOrNull()
-
-        if (existing != null) {
-            database.scanAppQueries.updateBluetoothCount(record.address)
-        } else {
-            database.scanAppQueries.insertBluetoothRecord(
-                name = record.name,
-                address = record.address,
-                rssi = record.rssi,
-                deviceType = record.deviceType,
-                timestamp = record.timestamp,
-                latitude = record.latitude,
-                longitude = record.longitude,
-                count = record.count
-            )
-        }
+        database.scanAppQueries.bluetoothUpsert(
+            name = record.name,
+            address = record.address,
+            rssi = record.rssi,
+            deviceType = record.deviceType,
+            timestamp = record.timestamp,
+            latitude = record.latitude,
+            longitude = record.longitude
+        )
     }
 
     suspend fun insertBatch(records: List<BluetoothScanRecord>) = withContext(Dispatchers.Default) {
         database.transaction {
             records.forEach { record ->
-                val existing = database.scanAppQueries.selectBluetoothByAddress(record.address).executeAsOneOrNull()
-                if (existing != null) {
-                    database.scanAppQueries.updateBluetoothCount(record.address)
-                } else {
-                    database.scanAppQueries.insertBluetoothRecord(
-                        name = record.name,
-                        address = record.address,
-                        rssi = record.rssi,
-                        deviceType = record.deviceType,
-                        timestamp = record.timestamp,
-                        latitude = record.latitude,
-                        longitude = record.longitude,
-                        count = record.count
-                    )
-                }
+                database.scanAppQueries.bluetoothUpsert(
+                    name = record.name,
+                    address = record.address,
+                    rssi = record.rssi,
+                    deviceType = record.deviceType,
+                    timestamp = record.timestamp,
+                    latitude = record.latitude,
+                    longitude = record.longitude
+                )
             }
         }
     }
