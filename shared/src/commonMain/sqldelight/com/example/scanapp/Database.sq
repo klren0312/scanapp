@@ -56,7 +56,7 @@ SELECT * FROM LocationRecord ORDER BY timestamp DESC;
 
 wifiUpsert:
 INSERT INTO WifiScanRecord (ssid, bssid, signalStrength, frequency, timestamp, latitude, longitude, count)
-VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(bssid) DO UPDATE SET
     count = count + 1,
     ssid = excluded.ssid,
@@ -68,7 +68,7 @@ ON CONFLICT(bssid) DO UPDATE SET
 
 bluetoothUpsert:
 INSERT INTO BluetoothScanRecord (name, address, rssi, deviceType, timestamp, latitude, longitude, count)
-VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(address) DO UPDATE SET
     count = count + 1,
     name = excluded.name,

@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
@@ -71,17 +71,18 @@ kotlin {
 }
 
 dependencies {
-    add("kspCommonMainMetadata", "com.tencent.kuikly:core-ksp:2.0.0")
+    add("kspCommonMainMetadata", "com.tencent.kuikly-open:core-ksp:2.0.0-2.0.21")
     // Kuikly core dependency
-    commonMainImplementation("com.tencent.kuikly:core:2.0.0")
+    commonMainImplementation("com.tencent.kuikly-open:core:2.0.0-2.0.21")
     // SQLDelight coroutines extensions
     commonMainImplementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
     // kotlinx serialization
     commonMainImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     // Test dependencies
-    commonTestImplementation("kotlin-test")
-    commonTestImplementation("kotlin-test-common")
-    commonTestImplementation("kotlin-test-annotations-common")
+    commonTestImplementation(kotlin("test"))
+    commonTestImplementation(kotlin("test-common"))
+    commonTestImplementation(kotlin("test-annotations-common"))
     commonTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     commonTestImplementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
 }
+

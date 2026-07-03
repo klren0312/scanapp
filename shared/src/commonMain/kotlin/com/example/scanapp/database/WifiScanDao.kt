@@ -15,7 +15,8 @@ class WifiScanDao(private val database: ScanAppDatabase) {
             frequency = record.frequency,
             timestamp = record.timestamp,
             latitude = record.latitude,
-            longitude = record.longitude
+            longitude = record.longitude,
+            count = record.count
         )
     }
 
@@ -29,7 +30,8 @@ class WifiScanDao(private val database: ScanAppDatabase) {
                     frequency = record.frequency,
                     timestamp = record.timestamp,
                     latitude = record.latitude,
-                    longitude = record.longitude
+                    longitude = record.longitude,
+                    count = record.count
                 )
             }
         }

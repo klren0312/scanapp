@@ -1,21 +1,4 @@
 plugins {
-    kotlin("multiplatform")
-}
-
-kotlin {
-    ohos {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "1.8"
-            }
-        }
-    }
-    
-    sourceSets {
-        val ohosMain by getting {
-            dependencies {
-                implementation(project(":shared"))
-            }
-        }
-    }
+    // Placeholder module for future HarmonyOS integration.
+    // Keep project wiring without declaring platform targets in this environment.
 }

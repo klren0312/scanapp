@@ -14,4 +14,5 @@ rootProject.name = "scanapp"
 include(":shared")
 include(":androidApp")
 include(":iosApp")
-include(":ohosApp")
+// HarmonyOS shell module is present as a placeholder to satisfy existing task scaffolding,
+// but actual HarmonyOS target integration is deferred in this environment.

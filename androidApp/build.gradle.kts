@@ -30,7 +30,7 @@ android {
 
 dependencies {
     implementation("com.tencent.kuikly-open:core-render-android:2.0.0")
-    implementation("com.tencent.kuikly-open:core:2.0.0")
+    implementation("com.tencent.kuikly-open:core:2.0.0-2.0.21")
     implementation(project(":shared"))
     implementation("androidx.core:core-ktx:1.7.0")
     implementation("androidx.appcompat:appcompat:1.6.1")

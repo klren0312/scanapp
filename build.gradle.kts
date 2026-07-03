@@ -16,7 +16,9 @@ buildscript {
         }
     }
     dependencies {
-        classpath("com.tencent.kuikly:core-ksp:2.0.0")
+        classpath("com.tencent.kuikly-open:core-ksp:2.0.0-2.0.21")
+        // Kotlin Gradle plugin for JVM/Android/Multiplatform modules
+        classpath(kotlin("gradle-plugin", version = "2.0.21"))
     }
 }
 
