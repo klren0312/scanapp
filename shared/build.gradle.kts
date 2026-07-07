@@ -67,6 +67,12 @@ kotlin {
                 implementation("app.cash.sqldelight:sqlite-driver:2.0.1")
             }
         }
+        val androidMain by getting {
+            dependencies {
+                implementation("app.cash.sqldelight:android-driver:2.0.1")
+                implementation("androidx.core:core-ktx:1.7.0")
+            }
+        }
     }
 }
 
@@ -74,6 +80,7 @@ dependencies {
     add("kspCommonMainMetadata", "com.tencent.kuikly-open:core-ksp:2.0.0-2.0.21")
     // Kuikly core dependency
     commonMainImplementation("com.tencent.kuikly-open:core:2.0.0-2.0.21")
+    commonMainImplementation("com.tencent.kuikly-open:core-annotations:2.0.0-2.0.21")
     // SQLDelight coroutines extensions
     commonMainImplementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
     // kotlinx serialization

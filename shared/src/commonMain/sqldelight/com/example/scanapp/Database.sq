@@ -54,43 +54,35 @@ SELECT * FROM BluetoothScanRecord WHERE address = ?;
 selectAllLocationRecords:
 SELECT * FROM LocationRecord ORDER BY timestamp DESC;
 
-wifiUpsert:
-INSERT INTO WifiScanRecord (ssid, bssid, signalStrength, frequency, timestamp, latitude, longitude, count)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(bssid) DO UPDATE SET
-    count = count + 1,
-    ssid = excluded.ssid,
-    signalStrength = excluded.signalStrength,
-    frequency = excluded.frequency,
-    timestamp = excluded.timestamp,
-    latitude = excluded.latitude,
-    longitude = excluded.longitude;
-
-bluetoothUpsert:
-INSERT INTO BluetoothScanRecord (name, address, rssi, deviceType, timestamp, latitude, longitude, count)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(address) DO UPDATE SET
-    count = count + 1,
-    name = excluded.name,
-    rssi = excluded.rssi,
-    deviceType = excluded.deviceType,
-    timestamp = excluded.timestamp,
-    latitude = excluded.latitude,
-    longitude = excluded.longitude;
-
 insertWifiRecord:
 INSERT INTO WifiScanRecord (ssid, bssid, signalStrength, frequency, timestamp, latitude, longitude, count)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
-updateWifiCount:
-UPDATE WifiScanRecord SET count = count + 1 WHERE bssid = ?;
+updateWifiRecord:
+UPDATE WifiScanRecord
+SET count = count + 1,
+    ssid = ?,
+    signalStrength = ?,
+    frequency = ?,
+    timestamp = ?,
+    latitude = ?,
+    longitude = ?
+WHERE bssid = ?;
 
 insertBluetoothRecord:
 INSERT INTO BluetoothScanRecord (name, address, rssi, deviceType, timestamp, latitude, longitude, count)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
-updateBluetoothCount:
-UPDATE BluetoothScanRecord SET count = count + 1 WHERE address = ?;
+updateBluetoothRecord:
+UPDATE BluetoothScanRecord
+SET count = count + 1,
+    name = ?,
+    rssi = ?,
+    deviceType = ?,
+    timestamp = ?,
+    latitude = ?,
+    longitude = ?
+WHERE address = ?;
 
 insertLocationRecord:
 INSERT INTO LocationRecord (latitude, longitude, altitude, accuracy, timestamp)

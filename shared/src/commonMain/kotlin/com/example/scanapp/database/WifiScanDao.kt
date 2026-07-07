@@ -8,104 +8,114 @@ import kotlinx.coroutines.withContext
 class WifiScanDao(private val database: ScanAppDatabase) {
 
     suspend fun insertOrUpdate(record: WifiScanRecord) = withContext(Dispatchers.Default) {
-        database.scanAppQueries.wifiUpsert(
-            ssid = record.ssid,
-            bssid = record.bssid,
-            signalStrength = record.signalStrength,
-            frequency = record.frequency,
-            timestamp = record.timestamp,
-            latitude = record.latitude,
-            longitude = record.longitude,
-            count = record.count
-        )
+        database.transaction {
+            insertOrUpdateInTransaction(record)
+        }
     }
 
     suspend fun insertBatch(records: List<WifiScanRecord>) = withContext(Dispatchers.Default) {
         database.transaction {
             records.forEach { record ->
-                database.scanAppQueries.wifiUpsert(
-                    ssid = record.ssid,
-                    bssid = record.bssid,
-                    signalStrength = record.signalStrength,
-                    frequency = record.frequency,
-                    timestamp = record.timestamp,
-                    latitude = record.latitude,
-                    longitude = record.longitude,
-                    count = record.count
-                )
+                insertOrUpdateInTransaction(record)
             }
         }
     }
 
     suspend fun getAllRecords(): List<WifiScanRecord> = withContext(Dispatchers.Default) {
-        database.scanAppQueries.selectAllWifiRecords().executeAsList().map {
+        database.databaseQueries.selectAllWifiRecords().executeAsList().map {
             WifiScanRecord(
                 id = it.id,
                 ssid = it.ssid,
                 bssid = it.bssid,
-                signalStrength = it.signalStrength,
-                frequency = it.frequency,
+                signalStrength = it.signalStrength.toInt(),
+                frequency = it.frequency.toInt(),
                 timestamp = it.timestamp,
                 latitude = it.latitude,
                 longitude = it.longitude,
-                count = it.count
+                count = it.count.toInt()
             )
         }
     }
 
     suspend fun getRecordsPaginated(limit: Int, offset: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
-        database.scanAppQueries.selectWifiRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
+        database.databaseQueries.selectWifiRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
                 ssid = it.ssid,
                 bssid = it.bssid,
-                signalStrength = it.signalStrength,
-                frequency = it.frequency,
+                signalStrength = it.signalStrength.toInt(),
+                frequency = it.frequency.toInt(),
                 timestamp = it.timestamp,
                 latitude = it.latitude,
                 longitude = it.longitude,
-                count = it.count
+                count = it.count.toInt()
             )
         }
     }
 
     suspend fun getCount(): Long = withContext(Dispatchers.Default) {
-        database.scanAppQueries.countWifiRecords().executeAsOne()
+        database.databaseQueries.countWifiRecords().executeAsOne()
     }
 
     suspend fun getRecordsBySignalStrength(minSignalStrength: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
-        database.scanAppQueries.selectWifiRecordsBySignalStrength(minSignalStrength).executeAsList().map {
+        database.databaseQueries.selectWifiRecordsBySignalStrength(minSignalStrength.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
                 ssid = it.ssid,
                 bssid = it.bssid,
-                signalStrength = it.signalStrength,
-                frequency = it.frequency,
+                signalStrength = it.signalStrength.toInt(),
+                frequency = it.frequency.toInt(),
                 timestamp = it.timestamp,
                 latitude = it.latitude,
                 longitude = it.longitude,
-                count = it.count
+                count = it.count.toInt()
             )
         }
     }
 
     suspend fun getRecordsByFrequency(frequency: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
-        database.scanAppQueries.selectWifiRecordsByFrequency(frequency).executeAsList().map {
+        database.databaseQueries.selectWifiRecordsByFrequency(frequency.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
                 ssid = it.ssid,
                 bssid = it.bssid,
-                signalStrength = it.signalStrength,
-                frequency = it.frequency,
+                signalStrength = it.signalStrength.toInt(),
+                frequency = it.frequency.toInt(),
                 timestamp = it.timestamp,
                 latitude = it.latitude,
                 longitude = it.longitude,
-                count = it.count
+                count = it.count.toInt()
             )
         }
     }
 
     suspend fun deleteAll() = withContext(Dispatchers.Default) {
-        database.scanAppQueries.deleteAllWifiRecords()
+        database.databaseQueries.deleteAllWifiRecords()
+    }
+
+    private fun insertOrUpdateInTransaction(record: WifiScanRecord) {
+        val existing = database.databaseQueries.selectWifiByBssid(record.bssid).executeAsOneOrNull()
+        if (existing == null) {
+            database.databaseQueries.insertWifiRecord(
+                ssid = record.ssid,
+                bssid = record.bssid,
+                signalStrength = record.signalStrength.toLong(),
+                frequency = record.frequency.toLong(),
+                timestamp = record.timestamp,
+                latitude = record.latitude,
+                longitude = record.longitude,
+                count = record.count.toLong()
+            )
+        } else {
+            database.databaseQueries.updateWifiRecord(
+                ssid = record.ssid,
+                signalStrength = record.signalStrength.toLong(),
+                frequency = record.frequency.toLong(),
+                timestamp = record.timestamp,
+                latitude = record.latitude,
+                longitude = record.longitude,
+                bssid = record.bssid
+            )
+        }
     }
 }

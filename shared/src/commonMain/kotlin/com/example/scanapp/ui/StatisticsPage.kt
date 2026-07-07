@@ -1,299 +1,107 @@
 package com.example.scanapp.ui
 
+import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.DatabaseFactory
+import com.example.scanapp.database.LocationDao
+import com.example.scanapp.database.WifiScanDao
+import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.WifiScanRecord
+import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.layout.size
-import com.tencent.kuikly.core.layout.width
-import com.tencent.kuikly.core.layout.height
-import com.tencent.kuikly.core.layout.flexDirection
+import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.justifyContent
 import com.tencent.kuikly.core.layout.FlexJustifyContent
-import com.tencent.kuikly.core.layout.alignSelf
-import com.tencent.kuikly.core.layout.FlexAlign
-import com.tencent.kuikly.core.layout.padding
-import com.tencent.kuikly.core.layout.marginTop
-import com.tencent.kuikly.core.layout.marginBottom
-import com.tencent.kuikly.core.layout.flex
-import com.tencent.kuikly.core.layout.backgroundColor
-import com.tencent.kuikly.core.layout.borderRadius
-import com.tencent.kuikly.core.layout.color
+import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.Scroller
-import com.tencent.kuikly.core.reactive.variable
-import com.tencent.kuikly.core.base.Page
-import com.tencent.kuikly.core.base.Pager
-import com.tencent.kuikly.core.base.annotation.Page
-import com.tencent.kuikly.core.base.Color
-import com.example.scanapp.database.DatabaseFactory
-import com.example.scanapp.database.WifiScanDao
-import com.example.scanapp.database.BluetoothScanDao
-import com.example.scanapp.database.LocationDao
-import com.example.scanapp.models.WifiScanRecord
-import com.example.scanapp.models.BluetoothScanRecord
-import com.example.scanapp.models.LocationRecord
 
 @Page("Statistics")
 class StatisticsPage : Pager() {
 
-    private val totalWifi = variable(0L)
-    private val totalBluetooth = variable(0L)
-    private val totalLocations = variable(0L)
-    private val topWifi = variable<List<WifiScanRecord>>(emptyList())
-    private val topBluetooth = variable<List<BluetoothScanRecord>>(emptyList())
+    private var totalWifi = 0L
+    private var totalBluetooth = 0L
+    private var totalLocations = 0L
+    private var topWifi: List<WifiScanRecord> = emptyList()
+    private var topBluetooth: List<BluetoothScanRecord> = emptyList()
 
     override fun created() {
         super.created()
         loadData()
     }
 
-    override fun body(): ViewContainer {
-        return View {
+    override fun body(): ViewContainer<*, *>.() -> Unit = {
+        val root = this
+        View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
-                backgroundColor(Color.parse("#F5F5F5"))
+                backgroundColor(Color("#F5F5F5"))
                 flexDirection(FlexDirection.COLUMN)
                 padding(16f)
             }
 
-            Text {
-                attr {
-                    text("统计信息")
-                    fontSize(24f)
-                    marginTop(40f)
-                    alignSelf(FlexAlign.CENTER)
-                    color(Color.parse("#333333"))
-                }
-            }
+            TitleText("Statistics")
+            this@StatisticsPage.run { root.SummaryCard() }
 
             Scroller {
                 attr {
                     flex(1f)
-                    width(pagerData.pageViewWidth - 32f)
                     marginTop(12f)
                 }
-
-                StatCard(
-                    title = "总计",
-                    wifiValue = totalWifi.value,
-                    btValue = totalBluetooth.value,
-                    locValue = totalLocations.value
-                )
-
-                Text {
-                    attr {
-                        text("最常见的WiFi设备")
-                        fontSize(16f)
-                        marginTop(16f)
-                        color(Color.parse("#333333"))
-                    }
+                InfoText("Top WiFi", Color("#333333"))
+                this@StatisticsPage.topWifi.forEachIndexed { index, record ->
+                    this@StatisticsPage.run { root.RankingRow(index, record.ssid, record.count, Color("#2196F3")) }
                 }
+                if (this@StatisticsPage.topWifi.isEmpty()) InfoText("No WiFi data")
 
-                topWifi.value.forEachIndexed { index, record ->
-                    View {
-                        attr {
-                            flexDirection(FlexDirection.ROW)
-                            justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                            padding(10f)
-                            marginTop(4f)
-                            backgroundColor(Color.WHITE)
-                            borderRadius(6f)
-                            width(pagerData.pageViewWidth - 32f)
-                        }
-                        Text {
-                            attr {
-                                text("${index + 1}. ${record.ssid}")
-                                fontSize(14f)
-                                color(Color.parse("#333333"))
-                            }
-                        }
-                        Text {
-                            attr {
-                                text("${record.count}次")
-                                fontSize(13f)
-                                color(Color.parse("#2196F3"))
-                            }
-                        }
-                    }
+                InfoText("Top Bluetooth", Color("#333333"))
+                this@StatisticsPage.topBluetooth.forEachIndexed { index, record ->
+                    this@StatisticsPage.run { root.RankingRow(index, record.name, record.count, Color("#4CAF50")) }
                 }
-
-                if (topWifi.value.isEmpty()) {
-                    Text {
-                        attr {
-                            text("暂无数据")
-                            fontSize(13f)
-                            color(Color.parse("#999999"))
-                            marginTop(4f)
-                        }
-                    }
-                }
-
-                Text {
-                    attr {
-                        text("最常见的蓝牙设备")
-                        fontSize(16f)
-                        marginTop(16f)
-                        color(Color.parse("#333333"))
-                    }
-                }
-
-                topBluetooth.value.forEachIndexed { index, record ->
-                    View {
-                        attr {
-                            flexDirection(FlexDirection.ROW)
-                            justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                            padding(10f)
-                            marginTop(4f)
-                            backgroundColor(Color.WHITE)
-                            borderRadius(6f)
-                            width(pagerData.pageViewWidth - 32f)
-                        }
-                        Text {
-                            attr {
-                                text("${index + 1}. ${record.name}")
-                                fontSize(14f)
-                                color(Color.parse("#333333"))
-                            }
-                        }
-                        Text {
-                            attr {
-                                text("${record.count}次")
-                                fontSize(13f)
-                                color(Color.parse("#4CAF50"))
-                            }
-                        }
-                    }
-                }
-
-                if (topBluetooth.value.isEmpty()) {
-                    Text {
-                        attr {
-                            text("暂无数据")
-                            fontSize(13f)
-                            color(Color.parse("#999999"))
-                            marginTop(4f)
-                        }
-                    }
-                }
-
-                Text {
-                    attr {
-                        text("信号强度分布")
-                        fontSize(16f)
-                        marginTop(16f)
-                        color(Color.parse("#333333"))
-                    }
-                }
-
-                SignalDistributionCard(topWifi.value, "WiFi")
-                SignalDistributionCard(topBluetooth.value, "蓝牙")
-
-                Text {
-                    attr {
-                        text("位置记录数: ${totalLocations.value}")
-                        fontSize(14f)
-                        marginTop(16f)
-                        marginBottom(20f)
-                        color(Color.parse("#666666"))
-                    }
-                }
+                if (this@StatisticsPage.topBluetooth.isEmpty()) InfoText("No Bluetooth data")
             }
         }
     }
 
-    private fun ViewContainer.StatCard(
-        title: String,
-        wifiValue: Long,
-        btValue: Long,
-        locValue: Long
-    ) {
+    private fun ViewContainer<*, *>.SummaryCard() {
         View {
             attr {
                 flexDirection(FlexDirection.ROW)
                 justifyContent(FlexJustifyContent.SPACE_AROUND)
                 padding(16f)
+                marginTop(12f)
                 backgroundColor(Color.WHITE)
                 borderRadius(8f)
-                width(pagerData.pageViewWidth - 32f)
             }
-
-            StatItem("WiFi", wifiValue, Color.parse("#2196F3"))
-            StatItem("蓝牙", btValue, Color.parse("#4CAF50"))
-            StatItem("位置", locValue, Color.parse("#FF9800"))
+            InfoText("WiFi: ${this@StatisticsPage.totalWifi}", Color("#2196F3"))
+            InfoText("Bluetooth: ${this@StatisticsPage.totalBluetooth}", Color("#4CAF50"))
+            InfoText("Locations: ${this@StatisticsPage.totalLocations}", Color("#FF9800"))
         }
     }
 
-    private fun ViewContainer.StatItem(label: String, value: Long, labelColor: Color) {
+    private fun ViewContainer<*, *>.RankingRow(index: Int, name: String, count: Int, color: Color) {
         View {
             attr {
-                alignItems(FlexAlign.CENTER)
-            }
-            Text {
-                attr {
-                    text("$value")
-                    fontSize(28f)
-                    color(labelColor)
-                }
-            }
-            Text {
-                attr {
-                    text(label)
-                    fontSize(13f)
-                    marginTop(4f)
-                    color(Color.parse("#999999"))
-                }
-            }
-        }
-    }
-
-    private fun ViewContainer.SignalDistributionCard(
-        records: List<WifiScanRecord>,
-        label: String
-    ) {
-        val strong = records.count { it.signalStrength > -50 }
-        val medium = records.count { it.signalStrength in -70..-50 }
-        val weak = records.count { it.signalStrength < -70 }
-        val total = records.size
-
-        View {
-            attr {
-                padding(12f)
-                marginTop(6f)
+                flexDirection(FlexDirection.ROW)
+                justifyContent(FlexJustifyContent.SPACE_BETWEEN)
+                padding(10f)
+                marginTop(4f)
                 backgroundColor(Color.WHITE)
                 borderRadius(6f)
-                width(pagerData.pageViewWidth - 32f)
             }
-            if (total > 0) {
-                Text {
-                    attr {
-                        text("$label - 强(>-50dBm): $strong")
-                        fontSize(13f)
-                        color(Color.parse("#333333"))
-                    }
+            Text {
+                attr {
+                    text("${index + 1}. ${name.ifEmpty { "Unknown" }}")
+                    fontSize(14f)
+                    color(Color("#333333"))
                 }
-                Text {
-                    attr {
-                        text("$label - 中(-50~-70dBm): $medium")
-                        fontSize(13f)
-                        marginTop(3f)
-                        color(Color.parse("#333333"))
-                    }
-                }
-                Text {
-                    attr {
-                        text("$label - 弱(<-70dBm): $weak")
-                        fontSize(13f)
-                        marginTop(3f)
-                        color(Color.parse("#333333"))
-                    }
-                }
-            } else {
-                Text {
-                    attr {
-                        text("$label 暂无信号数据")
-                        fontSize(13f)
-                        color(Color.parse("#999999"))
-                    }
+            }
+            Text {
+                attr {
+                    text("$count times")
+                    fontSize(13f)
+                    color(color)
                 }
             }
         }
@@ -301,29 +109,18 @@ class StatisticsPage : Pager() {
 
     private fun loadData() {
         lifecycleScope.launch {
-            try {
+            runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val wifiDao = WifiScanDao(db)
-                val btDao = BluetoothScanDao(db)
-                val locDao = LocationDao(db)
+                val bluetoothDao = BluetoothScanDao(db)
+                val locationDao = LocationDao(db)
 
-                totalWifi.value = wifiDao.getCount()
-                totalBluetooth.value = btDao.getCount()
-                totalLocations.value = locDao.getCount()
-
-                val allWifi = wifiDao.getAllRecords()
-                val allBt = btDao.getAllRecords()
-
-                topWifi.value = allWifi
-                    .sortedByDescending { it.count }
-                    .take(5)
-
-                topBluetooth.value = allBt
-                    .sortedByDescending { it.count }
-                    .take(5)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                totalWifi = wifiDao.getCount()
+                totalBluetooth = bluetoothDao.getCount()
+                totalLocations = locationDao.getCount()
+                topWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
+                topBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
+            }.onFailure { it.printStackTrace() }
         }
     }
 }
