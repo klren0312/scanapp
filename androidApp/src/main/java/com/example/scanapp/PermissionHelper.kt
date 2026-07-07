@@ -7,61 +7,34 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 
-object PermissionHelper {
+class PermissionHelper(private val activity: ComponentActivity) {
 
-    @JvmStatic
-    fun getAllForegroundPermissions(): Array<String> {
-        val list = mutableListOf<String>()
-        list.addAll(getLocationPermissions())
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            list.add(Manifest.permission.BLUETOOTH_SCAN)
-            list.add(Manifest.permission.BLUETOOTH_CONNECT)
-        }
-        return list.distinct().toTypedArray()
+    private var foregroundCallback: ((Boolean) -> Unit)? = null
+    private var backgroundCallback: ((Boolean) -> Unit)? = null
+
+    private val foregroundLauncher = activity.registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grantResults ->
+        foregroundCallback?.invoke(grantResults.all { it.value })
     }
 
-    @JvmStatic
-    fun getLocationPermissions(): Array<String> {
-        return arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
+    private val backgroundLauncher = activity.registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        backgroundCallback?.invoke(granted)
     }
 
-    @JvmStatic
-    fun hasAllPermissions(activity: ComponentActivity): Boolean {
-        val foregroundGranted = getAllForegroundPermissions().all {
-            ContextCompat.checkSelfPermission(activity, it) == PackageManager.PERMISSION_GRANTED
-        }
-        if (!foregroundGranted) return false
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-        return true
-    }
-
-    @JvmStatic
-    fun checkAndRequestPermissions(
-        activity: ComponentActivity,
-        onComplete: (Boolean) -> Unit
-    ) {
-        requestForegroundPermissions(activity) { foregroundGranted ->
+    fun checkAndRequestPermissions(onComplete: (Boolean) -> Unit) {
+        requestForegroundPermissions { foregroundGranted ->
             if (foregroundGranted) {
-                requestBackgroundLocation(activity, onComplete)
+                requestBackgroundLocation(onComplete)
             } else {
                 onComplete(false)
             }
         }
     }
 
-    private fun requestForegroundPermissions(
-        activity: ComponentActivity,
-        onResult: (Boolean) -> Unit
-    ) {
+    private fun requestForegroundPermissions(onResult: (Boolean) -> Unit) {
         val needed = getAllForegroundPermissions().filter {
             ContextCompat.checkSelfPermission(activity, it) != PackageManager.PERMISSION_GRANTED
         }.toTypedArray()
@@ -71,18 +44,11 @@ object PermissionHelper {
             return
         }
 
-        val launcher = activity.registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { grantResults ->
-            onResult(grantResults.all { it.value })
-        }
-        launcher.launch(needed)
+        foregroundCallback = onResult
+        foregroundLauncher.launch(needed)
     }
 
-    private fun requestBackgroundLocation(
-        activity: ComponentActivity,
-        onResult: (Boolean) -> Unit
-    ) {
+    private fun requestBackgroundLocation(onResult: (Boolean) -> Unit) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             onResult(true)
             return
@@ -97,11 +63,39 @@ object PermissionHelper {
             return
         }
 
-        val launcher = activity.registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            onResult(granted)
+        backgroundCallback = onResult
+        backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    }
+
+    companion object {
+        fun hasAllPermissions(activity: ComponentActivity): Boolean {
+            val foregroundGranted = getAllForegroundPermissions().all {
+                ContextCompat.checkSelfPermission(activity, it) == PackageManager.PERMISSION_GRANTED
+            }
+            if (!foregroundGranted) return false
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                return ContextCompat.checkSelfPermission(
+                    activity,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+            return true
         }
-        launcher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+
+        fun getAllForegroundPermissions(): Array<String> {
+            val list = mutableListOf<String>()
+            list.addAll(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                list.add(Manifest.permission.BLUETOOTH_SCAN)
+                list.add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            return list.distinct().toTypedArray()
+        }
     }
 }

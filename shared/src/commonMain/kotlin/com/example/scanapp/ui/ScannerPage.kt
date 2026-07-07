@@ -15,7 +15,6 @@ import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.Scroller
-import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
 @Page("Scanner")
@@ -37,96 +36,66 @@ class ScannerPage : Pager() {
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
-                backgroundColor(Color("#F5F5F5"))
+                backgroundColor(MdcTheme.Colors.background)
                 flexDirection(FlexDirection.COLUMN)
-                padding(16f)
+                padding(MdcTheme.Spacing.md)
             }
 
-            TitleText("WiFi / Bluetooth Scanner")
+            MdcTitle("WiFi / Bluetooth Scanner")
 
-            View {
-                attr {
-                    flexDirection(FlexDirection.ROW)
-                    justifyContent(FlexJustifyContent.SPACE_AROUND)
-                    marginTop(20f)
-                    padding(12f)
-                    backgroundColor(Color.WHITE)
-                    borderRadius(8f)
-                }
-                InfoText("WiFi: ${this@ScannerPage.wifiCount}", Color("#2196F3"))
-                InfoText("Bluetooth: ${this@ScannerPage.bluetoothCount}", Color("#4CAF50"))
+            MdcCardRow {
+                MdcStatBadge("WiFi Networks", "${this@ScannerPage.wifiCount}", MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth", "${this@ScannerPage.bluetoothCount}", MdcTheme.Colors.bluetooth)
             }
 
-            ActionButton(
-                label = if (this@ScannerPage.isScanning) "Stop Scanning" else "Start Scanning",
-                background = if (this@ScannerPage.isScanning) Color("#F44336") else Color("#2196F3")
+            MdcFilledButton(
+                label = if (this@ScannerPage.isScanning) "Stop Scanning" else "Start Scanning"
             ) {
                 if (this@ScannerPage.isScanning) this@ScannerPage.stopScanning() else this@ScannerPage.startScanning()
             }
 
             if (this@ScannerPage.isScanning) {
-                InfoText("Scanning...", Color("#FF9800"))
+                MdcBodyText("Scanning...", MdcTheme.Colors.warning)
             }
 
-            InfoText("Recent WiFi", Color("#333333"))
+            MdcSectionHeader("Recent WiFi")
             Scroller {
                 attr {
                     flex(1f)
-                    marginTop(8f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
                 this@ScannerPage.recentWifi.forEach { record ->
-                    this@ScannerPage.run { root.ScanRecordRow(record.ssid, "${record.signalStrength} dBm") }
+                    this@ScannerPage.run { root.MdcScanRecordRow(record.ssid, "${record.signalStrength} dBm") }
                 }
 
-                InfoText("Recent Bluetooth", Color("#333333"))
+                MdcSectionHeader("Recent Bluetooth")
                 this@ScannerPage.recentBluetooth.forEach { record ->
-                    this@ScannerPage.run { root.ScanRecordRow(record.name, "${record.rssi} dBm") }
+                    this@ScannerPage.run { root.MdcScanRecordRow(record.name, "${record.rssi} dBm") }
                 }
             }
+
+            MdcDivider()
 
             View {
                 attr {
                     flexDirection(FlexDirection.ROW)
-                    justifyContent(FlexJustifyContent.SPACE_AROUND)
-                    marginTop(8f)
+                    justifyContent(FlexJustifyContent.SPACE_EVENLY)
+                    padding(top = MdcTheme.Spacing.sm, bottom = MdcTheme.Spacing.sm)
                 }
-                this@ScannerPage.run { root.NavButton("Devices", "DeviceList") }
-                this@ScannerPage.run { root.NavButton("Stats", "Statistics") }
-                this@ScannerPage.run { root.NavButton("Map", "Map") }
-                this@ScannerPage.run { root.NavButton("Settings", "Settings") }
+                this@ScannerPage.run { root.MdcNavButton("Devices", "DeviceList") }
+                this@ScannerPage.run { root.MdcNavButton("Stats", "Statistics") }
+                this@ScannerPage.run { root.MdcNavButton("Map", "Map") }
+                this@ScannerPage.run { root.MdcNavButton("Settings", "Settings") }
             }
         }
     }
 
-    private fun ViewContainer<*, *>.ScanRecordRow(name: String, detail: String) {
-        View {
-            attr {
-                flexDirection(FlexDirection.ROW)
-                justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                padding(8f)
-                marginTop(4f)
-                backgroundColor(Color.WHITE)
-                borderRadius(6f)
-            }
-            Text {
-                attr {
-                    text(name.ifEmpty { "Unknown" })
-                    fontSize(14f)
-                    color(Color("#333333"))
-                }
-            }
-            Text {
-                attr {
-                    text(detail)
-                    fontSize(13f)
-                    color(Color("#999999"))
-                }
-            }
-        }
+    private fun ViewContainer<*, *>.MdcScanRecordRow(name: String, detail: String) {
+        MdcListItem(title = name, subtitle = "", trailing = detail)
     }
 
-    private fun ViewContainer<*, *>.NavButton(label: String, pageName: String) {
-        ActionButton(label = label, background = Color("#E3F2FD"), textColor = Color("#2196F3")) {
+    private fun ViewContainer<*, *>.MdcNavButton(label: String, pageName: String) {
+        MdcOutlinedButton(label = label) {
             this@ScannerPage.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
                 .openPage(pageName = pageName)
         }

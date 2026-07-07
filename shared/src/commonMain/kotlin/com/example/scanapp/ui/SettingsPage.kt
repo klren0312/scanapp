@@ -25,40 +25,40 @@ class SettingsPage : Pager() {
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
-                backgroundColor(Color("#F5F5F5"))
+                backgroundColor(MdcTheme.Colors.background)
                 flexDirection(FlexDirection.COLUMN)
-                padding(16f)
+                padding(MdcTheme.Spacing.md)
             }
 
-            TitleText("Settings")
+            MdcTitle("Settings")
 
             Scroller {
                 attr {
                     flex(1f)
-                    marginTop(12f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
 
-                InfoText("Data Export", Color("#333333"))
+                MdcSectionHeader("Data Export")
                 View {
                     attr {
                         flexDirection(FlexDirection.ROW)
-                        justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                        marginTop(8f)
+                        justifyContent(FlexJustifyContent.SPACE_EVENLY)
+                        marginTop(MdcTheme.Spacing.sm)
                     }
-                    ActionButton("Export CSV", Color("#2196F3")) { this@SettingsPage.exportData("csv") }
-                    ActionButton("Export JSON", Color("#4CAF50")) { this@SettingsPage.exportData("json") }
+                    MdcFilledButton("Export CSV") { this@SettingsPage.exportData("csv") }
+                    MdcFilledButton("Export JSON") { this@SettingsPage.exportData("json") }
                 }
 
                 if (this@SettingsPage.exportResult.isNotEmpty()) {
-                    InfoText(this@SettingsPage.exportResult, Color("#4CAF50"))
+                    MdcBodyText(this@SettingsPage.exportResult, MdcTheme.Colors.secondary)
                 }
 
-                InfoText("Data Management", Color("#333333"))
-                ActionButton("Clear All Data", Color("#F44336")) { this@SettingsPage.clearAllData() }
+                MdcSectionHeader("Data Management")
+                MdcErrorButton("Clear All Data") { this@SettingsPage.clearAllData() }
 
-                InfoText("About", Color("#333333"))
-                InfoText("ScanApp v1.0")
-                InfoText("WiFi / Bluetooth scanner built with Kuikly KMP")
+                MdcSectionHeader("About")
+                MdcBodyText("ScanApp v1.0")
+                MdcCaption("WiFi / Bluetooth scanner built with Kuikly KMP")
             }
         }
     }

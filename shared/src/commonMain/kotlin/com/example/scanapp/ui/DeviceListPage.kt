@@ -9,7 +9,6 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
-import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.pager.Pager
@@ -34,84 +33,80 @@ class DeviceListPage : Pager() {
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
-                backgroundColor(Color("#F5F5F5"))
+                backgroundColor(MdcTheme.Colors.background)
                 flexDirection(FlexDirection.COLUMN)
-                padding(16f)
+                padding(MdcTheme.Spacing.md)
             }
 
-            TitleText("Devices")
+            MdcTitle("Devices")
 
             View {
                 attr {
                     flexDirection(FlexDirection.ROW)
                     justifyContent(FlexJustifyContent.CENTER)
-                    marginTop(16f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
-                this@DeviceListPage.run { root.TabButton("WiFi", this@DeviceListPage.selectedTab == 0) { this@DeviceListPage.selectedTab = 0 } }
-                this@DeviceListPage.run { root.TabButton("Bluetooth", this@DeviceListPage.selectedTab == 1) { this@DeviceListPage.selectedTab = 1 } }
+                this@DeviceListPage.run { root.MdcCustomTab("WiFi", this@DeviceListPage.selectedTab == 0) { this@DeviceListPage.selectedTab = 0 } }
+                this@DeviceListPage.run { root.MdcCustomTab("Bluetooth", this@DeviceListPage.selectedTab == 1) { this@DeviceListPage.selectedTab = 1 } }
             }
 
             Scroller {
                 attr {
                     flex(1f)
-                    marginTop(8f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
                 if (this@DeviceListPage.selectedTab == 0) {
                     this@DeviceListPage.wifiRecords
                         .sortedByDescending { it.signalStrength }
-                        .forEach { this@DeviceListPage.run { root.DeviceItem(it.ssid, it.bssid, it.signalStrength, it.count) } }
-                    if (this@DeviceListPage.wifiRecords.isEmpty()) InfoText("No WiFi records")
+                        .forEach { this@DeviceListPage.run { root.MdcDeviceCard(it.ssid, it.bssid, it.signalStrength, it.count) } }
+                    if (this@DeviceListPage.wifiRecords.isEmpty()) MdcBodyText("No WiFi records", MdcTheme.Colors.onSurfaceVariant)
                 } else {
                     this@DeviceListPage.bluetoothRecords
                         .sortedByDescending { it.rssi }
-                        .forEach { this@DeviceListPage.run { root.DeviceItem(it.name, it.address, it.rssi, it.count) } }
-                    if (this@DeviceListPage.bluetoothRecords.isEmpty()) InfoText("No Bluetooth records")
+                        .forEach { this@DeviceListPage.run { root.MdcDeviceCard(it.name, it.address, it.rssi, it.count) } }
+                    if (this@DeviceListPage.bluetoothRecords.isEmpty()) MdcBodyText("No Bluetooth records", MdcTheme.Colors.onSurfaceVariant)
                 }
             }
         }
     }
 
-    private fun ViewContainer<*, *>.TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
-        ActionButton(
-            label = label,
-            background = if (selected) Color("#2196F3") else Color.TRANSPARENT,
-            textColor = if (selected) Color.WHITE else Color("#333333"),
-            onClick = onClick
-        )
+    private fun ViewContainer<*, *>.MdcCustomTab(label: String, selected: Boolean, onClick: () -> Unit) {
+        MdcTab(label = label, selected = selected, onClick = onClick)
     }
 
-    private fun ViewContainer<*, *>.DeviceItem(name: String, address: String, signal: Int, count: Int) {
-        View {
-            attr {
-                flexDirection(FlexDirection.COLUMN)
-                padding(10f)
-                marginTop(6f)
-                backgroundColor(Color.WHITE)
-                borderRadius(8f)
-            }
+    private fun ViewContainer<*, *>.MdcDeviceCard(name: String, address: String, signal: Int, count: Int) {
+        MdcCard {
             View {
                 attr {
                     flexDirection(FlexDirection.ROW)
                     justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                    alignItems(FlexAlign.CENTER)
+                    alignItemsCenter()
                 }
                 Text {
                     attr {
                         text(name.ifEmpty { "Unknown" })
-                        fontSize(15f)
-                        color(Color("#333333"))
+                        fontSize(MdcTheme.Typography.bodyLarge)
+                        fontWeightMedium()
+                        color(MdcTheme.Colors.onSurface)
                     }
                 }
                 Text {
                     attr {
                         text("$signal dBm")
-                        fontSize(12f)
-                        color(Color("#999999"))
+                        fontSize(MdcTheme.Typography.bodySmall)
+                        color(MdcTheme.Colors.onSurfaceVariant)
                     }
                 }
             }
-            InfoText(address, Color("#999999"))
-            InfoText("Seen $count times", Color("#2196F3"))
+            MdcCaption(address)
+            Text {
+                attr {
+                    text("Seen $count times")
+                    fontSize(MdcTheme.Typography.bodySmall)
+                    color(MdcTheme.Colors.primary)
+                    marginTop(4f)
+                }
+            }
         }
     }
 

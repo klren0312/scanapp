@@ -10,8 +10,11 @@ import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var permissionHelper: PermissionHelper
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        permissionHelper = PermissionHelper(this)
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -112,7 +115,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        PermissionHelper.checkAndRequestPermissions(this) { granted ->
+        permissionHelper.checkAndRequestPermissions { granted ->
             if (granted) {
                 KuiklyRenderActivity.start(this, pageName)
             } else {

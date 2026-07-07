@@ -11,10 +11,8 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.Scroller
-import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
 @Page("Statistics")
@@ -36,75 +34,45 @@ class StatisticsPage : Pager() {
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
-                backgroundColor(Color("#F5F5F5"))
+                backgroundColor(MdcTheme.Colors.background)
                 flexDirection(FlexDirection.COLUMN)
-                padding(16f)
+                padding(MdcTheme.Spacing.md)
             }
 
-            TitleText("Statistics")
-            this@StatisticsPage.run { root.SummaryCard() }
+            MdcTitle("Statistics")
+
+            MdcCardRow {
+                MdcStatBadge("WiFi", "${this@StatisticsPage.totalWifi}", MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth", "${this@StatisticsPage.totalBluetooth}", MdcTheme.Colors.bluetooth)
+                MdcStatBadge("Locations", "${this@StatisticsPage.totalLocations}", MdcTheme.Colors.warning)
+            }
 
             Scroller {
                 attr {
                     flex(1f)
-                    marginTop(12f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
-                InfoText("Top WiFi", Color("#333333"))
+                MdcSectionHeader("Top WiFi")
                 this@StatisticsPage.topWifi.forEachIndexed { index, record ->
-                    this@StatisticsPage.run { root.RankingRow(index, record.ssid, record.count, Color("#2196F3")) }
+                    this@StatisticsPage.run { root.MdcRankingRow(index, record.ssid, record.count, MdcTheme.Colors.wifi) }
                 }
-                if (this@StatisticsPage.topWifi.isEmpty()) InfoText("No WiFi data")
+                if (this@StatisticsPage.topWifi.isEmpty()) MdcBodyText("No WiFi data", MdcTheme.Colors.onSurfaceVariant)
 
-                InfoText("Top Bluetooth", Color("#333333"))
+                MdcSectionHeader("Top Bluetooth")
                 this@StatisticsPage.topBluetooth.forEachIndexed { index, record ->
-                    this@StatisticsPage.run { root.RankingRow(index, record.name, record.count, Color("#4CAF50")) }
+                    this@StatisticsPage.run { root.MdcRankingRow(index, record.name, record.count, MdcTheme.Colors.bluetooth) }
                 }
-                if (this@StatisticsPage.topBluetooth.isEmpty()) InfoText("No Bluetooth data")
+                if (this@StatisticsPage.topBluetooth.isEmpty()) MdcBodyText("No Bluetooth data", MdcTheme.Colors.onSurfaceVariant)
             }
         }
     }
 
-    private fun ViewContainer<*, *>.SummaryCard() {
-        View {
-            attr {
-                flexDirection(FlexDirection.ROW)
-                justifyContent(FlexJustifyContent.SPACE_AROUND)
-                padding(16f)
-                marginTop(12f)
-                backgroundColor(Color.WHITE)
-                borderRadius(8f)
-            }
-            InfoText("WiFi: ${this@StatisticsPage.totalWifi}", Color("#2196F3"))
-            InfoText("Bluetooth: ${this@StatisticsPage.totalBluetooth}", Color("#4CAF50"))
-            InfoText("Locations: ${this@StatisticsPage.totalLocations}", Color("#FF9800"))
-        }
-    }
-
-    private fun ViewContainer<*, *>.RankingRow(index: Int, name: String, count: Int, color: Color) {
-        View {
-            attr {
-                flexDirection(FlexDirection.ROW)
-                justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                padding(10f)
-                marginTop(4f)
-                backgroundColor(Color.WHITE)
-                borderRadius(6f)
-            }
-            Text {
-                attr {
-                    text("${index + 1}. ${name.ifEmpty { "Unknown" }}")
-                    fontSize(14f)
-                    color(Color("#333333"))
-                }
-            }
-            Text {
-                attr {
-                    text("$count times")
-                    fontSize(13f)
-                    color(color)
-                }
-            }
-        }
+    private fun ViewContainer<*, *>.MdcRankingRow(index: Int, name: String, count: Int, color: Color) {
+        MdcListItem(
+            title = "${index + 1}. ${name.ifEmpty { "Unknown" }}",
+            trailing = "$count times",
+            trailingColor = color
+        )
     }
 
     private fun loadData() {

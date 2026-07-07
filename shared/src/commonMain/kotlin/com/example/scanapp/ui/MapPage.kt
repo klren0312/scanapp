@@ -30,55 +30,49 @@ class MapPage : Pager() {
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
-                backgroundColor(Color("#F5F5F5"))
+                backgroundColor(MdcTheme.Colors.background)
                 flexDirection(FlexDirection.COLUMN)
-                padding(16f)
+                padding(MdcTheme.Spacing.md)
             }
 
-            TitleText("Locations")
-            InfoText("Total records: ${this@MapPage.totalCount}", Color("#333333"))
+            MdcTitle("Locations")
+            MdcBodyText("Total records: ${this@MapPage.totalCount}", MdcTheme.Colors.onSurfaceVariant)
 
             Scroller {
                 attr {
                     flex(1f)
-                    marginTop(8f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
                 this@MapPage.locationRecords.forEachIndexed { index, record ->
-                    this@MapPage.run { root.LocationItem(index, record) }
+                    this@MapPage.run { root.MdcLocationCard(index, record) }
                 }
                 if (this@MapPage.locationRecords.isEmpty()) {
-                    InfoText("No location records")
+                    MdcBodyText("No location records", MdcTheme.Colors.onSurfaceVariant)
                 }
             }
         }
     }
 
-    private fun ViewContainer<*, *>.LocationItem(index: Int, record: LocationRecord) {
-        View {
-            attr {
-                flexDirection(FlexDirection.COLUMN)
-                padding(12f)
-                marginTop(6f)
-                backgroundColor(Color.WHITE)
-                borderRadius(8f)
-            }
+    private fun ViewContainer<*, *>.MdcLocationCard(index: Int, record: LocationRecord) {
+        MdcCard {
             Text {
                 attr {
-                    text("#${index + 1} (${record.latitude}, ${record.longitude})")
-                    fontSize(15f)
-                    color(Color("#333333"))
+                    text("#${index + 1}  (${record.latitude}, ${record.longitude})")
+                    fontSize(MdcTheme.Typography.bodyLarge)
+                    fontWeightMedium()
+                    color(MdcTheme.Colors.onSurface)
                 }
             }
             View {
                 attr {
                     flexDirection(FlexDirection.ROW)
                     justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                    marginTop(6f)
+                    marginTop(MdcTheme.Spacing.sm)
                 }
-                InfoText("Altitude: ${"%.1f".format(record.altitude)} m")
-                InfoText("Accuracy: ${"%.1f".format(record.accuracy)} m")
+                MdcCaption("Altitude: ${"%.1f".format(record.altitude)} m")
+                MdcCaption("Accuracy: ${"%.1f".format(record.accuracy)} m")
             }
-            InfoText("Timestamp: ${record.timestamp}", Color("#999999"))
+            MdcCaption("Timestamp: ${record.timestamp}")
         }
     }
 
