@@ -9,7 +9,9 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
+import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -18,7 +20,7 @@ import com.tencent.kuikly.core.views.View
 class MapPage : Pager() {
 
     private var locationRecords: List<LocationRecord> = emptyList()
-    private var totalCount = 0L
+    private var totalCount by observable(0L)
 
     override fun created() {
         super.created()
@@ -35,7 +37,7 @@ class MapPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTitle("Locations")
+            MdcTopBar("Locations") { this@MapPage.closePage() }
             MdcBodyText("Total records: ${this@MapPage.totalCount}", MdcTheme.Colors.onSurfaceVariant)
 
             Scroller {
@@ -69,8 +71,8 @@ class MapPage : Pager() {
                     justifyContent(FlexJustifyContent.SPACE_BETWEEN)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                MdcCaption("Altitude: ${"%.1f".format(record.altitude)} m")
-                MdcCaption("Accuracy: ${"%.1f".format(record.accuracy)} m")
+                MdcCaption("Altitude: ${this@MapPage.formatOneDecimal(record.altitude)} m")
+                MdcCaption("Accuracy: ${this@MapPage.formatOneDecimal(record.accuracy.toDouble())} m")
             }
             MdcCaption("Timestamp: ${record.timestamp}")
         }
@@ -84,5 +86,16 @@ class MapPage : Pager() {
                 locationRecords = dao.getAllRecords()
             }.onFailure { it.printStackTrace() }
         }
+    }
+
+    private fun formatOneDecimal(value: Double): String {
+        val tenths = kotlin.math.round(value * 10.0).toLong()
+        val sign = if (tenths < 0) "-" else ""
+        val absolute = kotlin.math.abs(tenths)
+        return "$sign${absolute / 10}.${absolute % 10}"
+    }
+
+    private fun closePage() {
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
     }
 }

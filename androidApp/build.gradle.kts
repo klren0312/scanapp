@@ -29,7 +29,7 @@ android {
 }
 
 dependencies {
-    implementation("com.tencent.kuikly-open:core-render-android:2.0.0")
+    implementation("com.tencent.kuikly-open:core-render-android:2.0.0-2.0.21")
     implementation("com.tencent.kuikly-open:core:2.0.0-2.0.21")
     implementation(project(":shared"))
     implementation("androidx.core:core-ktx:1.7.0")
@@ -38,4 +38,6 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.3")
     implementation("androidx.work:work-runtime:2.8.1")
     implementation("androidx.work:work-runtime-ktx:2.8.1")
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }

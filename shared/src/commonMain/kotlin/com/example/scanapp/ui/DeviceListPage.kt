@@ -11,7 +11,9 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
+import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -19,7 +21,7 @@ import com.tencent.kuikly.core.views.View
 @Page("DeviceList")
 class DeviceListPage : Pager() {
 
-    private var selectedTab = 0
+    private var selectedTab by observable(0)
     private var wifiRecords: List<WifiScanRecord> = emptyList()
     private var bluetoothRecords: List<BluetoothScanRecord> = emptyList()
 
@@ -38,7 +40,7 @@ class DeviceListPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTitle("Devices")
+            MdcTopBar("Devices") { this@DeviceListPage.closePage() }
 
             View {
                 attr {
@@ -118,5 +120,9 @@ class DeviceListPage : Pager() {
                 bluetoothRecords = BluetoothScanDao(db).getAllRecords()
             }.onFailure { it.printStackTrace() }
         }
+    }
+
+    private fun closePage() {
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
     }
 }

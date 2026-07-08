@@ -28,6 +28,50 @@ internal fun ViewContainer<*, *>.MdcTitle(text: String) {
     }
 }
 
+internal fun ViewContainer<*, *>.MdcTopBar(
+    title: String,
+    onBack: () -> Unit
+) {
+    View {
+        attr {
+            flexDirection(FlexDirection.ROW)
+            alignItems(FlexAlign.CENTER)
+            padding(top = MdcTheme.Spacing.xs, bottom = MdcTheme.Spacing.sm)
+        }
+        View {
+            attr {
+                width(72f)
+                height(40f)
+                borderRadius(20f)
+                backgroundColor(MdcTheme.Colors.surface)
+                alignItems(FlexAlign.CENTER)
+                justifyContent(FlexJustifyContent.CENTER)
+                marginRight(MdcTheme.Spacing.sm)
+            }
+            event {
+                click { onBack() }
+            }
+            Text {
+                attr {
+                    text("Back")
+                    fontSize(MdcTheme.Typography.labelLarge)
+                    fontWeightSemiBold()
+                    color(MdcTheme.Colors.primary)
+                }
+            }
+        }
+        Text {
+            attr {
+                text(title)
+                flex(1f)
+                fontSize(MdcTheme.Typography.headlineMedium)
+                fontWeightBold()
+                color(MdcTheme.Colors.onBackground)
+            }
+        }
+    }
+}
+
 internal fun ViewContainer<*, *>.MdcSectionHeader(text: String) {
     Text {
         attr {

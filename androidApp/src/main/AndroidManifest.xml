@@ -19,10 +19,15 @@
         android:maxSdkVersion="32" />
     
     <!-- 前台服务权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".ScanApplication"
         android:allowBackup="true"
         android:label="ScanApp"
         android:supportsRtl="true"
@@ -39,6 +44,10 @@
         <activity
             android:name=".KuiklyRenderActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".OsmMapActivity"
+            android:exported="false" />
         
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -51,9 +60,10 @@
         </provider>
 
         <service
-            android:name=".BackgroundScanService"
+            android:name="com.example.scanapp.service.BackgroundScanService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice|location" />
     </application>
 
 </manifest>

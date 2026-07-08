@@ -11,14 +11,24 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
+import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.View
 
 @Page("Settings")
 class SettingsPage : Pager() {
 
-    private var exportResult = ""
+    private var exportResult by observable("")
+    private var totalWifi by observable(0L)
+    private var totalBluetooth by observable(0L)
+    private var totalLocations by observable(0L)
+
+    override fun created() {
+        super.created()
+        loadSummary()
+    }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
         val root = this
@@ -30,12 +40,19 @@ class SettingsPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTitle("Settings")
+            MdcTopBar("Settings") { this@SettingsPage.closePage() }
 
             Scroller {
                 attr {
                     flex(1f)
                     marginTop(MdcTheme.Spacing.sm)
+                }
+
+                MdcSectionHeader("Storage")
+                MdcCardRow {
+                    MdcStatBadge("WiFi", "${this@SettingsPage.totalWifi}", MdcTheme.Colors.wifi)
+                    MdcStatBadge("Bluetooth", "${this@SettingsPage.totalBluetooth}", MdcTheme.Colors.bluetooth)
+                    MdcStatBadge("Locations", "${this@SettingsPage.totalLocations}", MdcTheme.Colors.warning)
                 }
 
                 MdcSectionHeader("Data Export")
@@ -91,11 +108,29 @@ class SettingsPage : Pager() {
                 WifiScanDao(db).deleteAll()
                 BluetoothScanDao(db).deleteAll()
                 LocationDao(db).deleteAll()
+                totalWifi = 0L
+                totalBluetooth = 0L
+                totalLocations = 0L
                 exportResult = "All data cleared"
             }.onFailure {
                 exportResult = "Clear failed: ${it.message}"
                 it.printStackTrace()
             }
         }
+    }
+
+    private fun loadSummary() {
+        lifecycleScope.launch {
+            runCatching {
+                val db = DatabaseFactory.getDatabase()
+                totalWifi = WifiScanDao(db).getCount()
+                totalBluetooth = BluetoothScanDao(db).getCount()
+                totalLocations = LocationDao(db).getCount()
+            }.onFailure { it.printStackTrace() }
+        }
+    }
+
+    private fun closePage() {
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
     }
 }

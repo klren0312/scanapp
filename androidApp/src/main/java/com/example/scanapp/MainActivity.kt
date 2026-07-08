@@ -1,6 +1,7 @@
 package com.example.scanapp
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.Button
 import android.widget.LinearLayout
@@ -82,7 +83,9 @@ class MainActivity : AppCompatActivity() {
                 topMargin = 20
             }
             setOnClickListener {
-                navigateWithPermissionCheck("Map")
+                navigateWithPermissionCheck {
+                    startActivity(Intent(this@MainActivity, OsmMapActivity::class.java))
+                }
             }
         }
 
@@ -110,14 +113,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun navigateWithPermissionCheck(pageName: String) {
-        if (PermissionHelper.hasAllPermissions(this)) {
+        navigateWithPermissionCheck {
             KuiklyRenderActivity.start(this, pageName)
+        }
+    }
+
+    private fun navigateWithPermissionCheck(onGranted: () -> Unit) {
+        if (PermissionHelper.hasForegroundPermissions(this)) {
+            onGranted()
             return
         }
 
         permissionHelper.checkAndRequestPermissions { granted ->
             if (granted) {
-                KuiklyRenderActivity.start(this, pageName)
+                onGranted()
             } else {
                 Toast.makeText(
                     this,

@@ -6,28 +6,28 @@ import com.tencent.kuikly.core.base.Color
 internal object MdcTheme {
 
     object Colors {
-        val primary = Color("#1565C0")
+        val primary = Color(0xff1565C0L)
         val onPrimary = Color.WHITE
-        val primaryContainer = Color("#D1E4FF")
-        val onPrimaryContainer = Color("#001D36")
-        val secondary = Color("#00897B")
+        val primaryContainer = Color(0xffD1E4FFL)
+        val onPrimaryContainer = Color(0xff001D36L)
+        val secondary = Color(0xff00897BL)
         val onSecondary = Color.WHITE
-        val secondaryContainer = Color("#B2DFDB")
-        val onSecondaryContainer = Color("#00201E")
-        val error = Color("#C62828")
+        val secondaryContainer = Color(0xffB2DFDBL)
+        val onSecondaryContainer = Color(0xff00201EL)
+        val error = Color(0xffC62828L)
         val onError = Color.WHITE
-        val errorContainer = Color("#FFDAD6")
-        val background = Color("#FAFAFA")
-        val onBackground = Color("#1C1B1F")
+        val errorContainer = Color(0xffFFDAD6L)
+        val background = Color(0xffFAFAFAL)
+        val onBackground = Color(0xff1C1B1FL)
         val surface = Color.WHITE
-        val onSurface = Color("#1C1B1F")
-        val surfaceVariant = Color("#F5F5F5")
-        val onSurfaceVariant = Color("#666666")
-        val outline = Color("#DADCE0")
-        val wifi = Color("#1565C0")
-        val bluetooth = Color("#00897B")
-        val warning = Color("#E65100")
-        val rankingGold = Color("#FF8F00")
+        val onSurface = Color(0xff1C1B1FL)
+        val surfaceVariant = Color(0xffF5F5F5L)
+        val onSurfaceVariant = Color(0xff666666L)
+        val outline = Color(0xffDADCE0L)
+        val wifi = Color(0xff1565C0L)
+        val bluetooth = Color(0xff00897BL)
+        val warning = Color(0xffE65100L)
+        val rankingGold = Color(0xffFF8F00L)
     }
 
     object Typography {

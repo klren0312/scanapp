@@ -10,7 +10,6 @@ import androidx.core.content.ContextCompat
 class PermissionHelper(private val activity: ComponentActivity) {
 
     private var foregroundCallback: ((Boolean) -> Unit)? = null
-    private var backgroundCallback: ((Boolean) -> Unit)? = null
 
     private val foregroundLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -18,20 +17,8 @@ class PermissionHelper(private val activity: ComponentActivity) {
         foregroundCallback?.invoke(grantResults.all { it.value })
     }
 
-    private val backgroundLauncher = activity.registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        backgroundCallback?.invoke(granted)
-    }
-
     fun checkAndRequestPermissions(onComplete: (Boolean) -> Unit) {
-        requestForegroundPermissions { foregroundGranted ->
-            if (foregroundGranted) {
-                requestBackgroundLocation(onComplete)
-            } else {
-                onComplete(false)
-            }
-        }
+        requestForegroundPermissions(onComplete)
     }
 
     private fun requestForegroundPermissions(onResult: (Boolean) -> Unit) {
@@ -48,39 +35,11 @@ class PermissionHelper(private val activity: ComponentActivity) {
         foregroundLauncher.launch(needed)
     }
 
-    private fun requestBackgroundLocation(onResult: (Boolean) -> Unit) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            onResult(true)
-            return
-        }
-
-        if (ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            onResult(true)
-            return
-        }
-
-        backgroundCallback = onResult
-        backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-    }
-
     companion object {
-        fun hasAllPermissions(activity: ComponentActivity): Boolean {
-            val foregroundGranted = getAllForegroundPermissions().all {
+        fun hasForegroundPermissions(activity: ComponentActivity): Boolean {
+            return getAllForegroundPermissions().all {
                 ContextCompat.checkSelfPermission(activity, it) == PackageManager.PERMISSION_GRANTED
             }
-            if (!foregroundGranted) return false
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                return ContextCompat.checkSelfPermission(
-                    activity,
-                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            }
-            return true
         }
 
         fun getAllForegroundPermissions(): Array<String> {

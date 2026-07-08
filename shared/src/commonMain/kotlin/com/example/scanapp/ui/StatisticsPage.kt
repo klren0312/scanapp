@@ -11,16 +11,18 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.View
 
 @Page("Statistics")
 class StatisticsPage : Pager() {
 
-    private var totalWifi = 0L
-    private var totalBluetooth = 0L
-    private var totalLocations = 0L
+    private var totalWifi by observable(0L)
+    private var totalBluetooth by observable(0L)
+    private var totalLocations by observable(0L)
     private var topWifi: List<WifiScanRecord> = emptyList()
     private var topBluetooth: List<BluetoothScanRecord> = emptyList()
 
@@ -39,7 +41,7 @@ class StatisticsPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTitle("Statistics")
+            MdcTopBar("Statistics") { this@StatisticsPage.closePage() }
 
             MdcCardRow {
                 MdcStatBadge("WiFi", "${this@StatisticsPage.totalWifi}", MdcTheme.Colors.wifi)
@@ -90,5 +92,9 @@ class StatisticsPage : Pager() {
                 topBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
             }.onFailure { it.printStackTrace() }
         }
+    }
+
+    private fun closePage() {
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
     }
 }

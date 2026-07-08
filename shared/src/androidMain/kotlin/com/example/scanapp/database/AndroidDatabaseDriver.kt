@@ -11,11 +11,15 @@ object AndroidDatabaseDriver {
     fun initialize(context: Context) {
         this.context = context.applicationContext
     }
-    
-    fun createDriver(): SqlDriver {
-        val appContext = context ?: throw IllegalStateException(
+
+    fun requireContext(): Context {
+        return context ?: throw IllegalStateException(
             "AndroidDatabaseDriver not initialized. Call AndroidDatabaseDriver.initialize(context) first."
         )
+    }
+    
+    fun createDriver(): SqlDriver {
+        val appContext = requireContext()
         return AndroidSqliteDriver(
             schema = ScanAppDatabase.Schema,
             context = appContext,
