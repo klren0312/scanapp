@@ -5,24 +5,28 @@ import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
+import com.example.scanapp.service.PlatformScanController
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Scroller
+import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
 @Page("Scanner")
 class ScannerPage : Pager() {
 
-    private var isScanning = false
-    private var wifiCount = 0L
-    private var bluetoothCount = 0L
+    private var isScanning by observable(false)
+    private var scanStatus by observable("")
+    private var wifiCount by observable(0L)
+    private var bluetoothCount by observable(0L)
     private var recentWifi: List<WifiScanRecord> = emptyList()
     private var recentBluetooth: List<BluetoothScanRecord> = emptyList()
 
@@ -41,21 +45,62 @@ class ScannerPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTitle("WiFi / Bluetooth Scanner")
+            MdcTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.closePage() }
 
             MdcCardRow {
                 MdcStatBadge("WiFi Networks", "${this@ScannerPage.wifiCount}", MdcTheme.Colors.wifi)
                 MdcStatBadge("Bluetooth", "${this@ScannerPage.bluetoothCount}", MdcTheme.Colors.bluetooth)
             }
 
-            MdcFilledButton(
-                label = if (this@ScannerPage.isScanning) "Stop Scanning" else "Start Scanning"
-            ) {
-                if (this@ScannerPage.isScanning) this@ScannerPage.stopScanning() else this@ScannerPage.startScanning()
+            View {
+                attr {
+                    marginTop(MdcTheme.Spacing.sm)
+                    padding(top = 12f, bottom = 12f, left = MdcTheme.Spacing.md + 4f, right = MdcTheme.Spacing.md + 4f)
+                    backgroundColor(
+                        if (this@ScannerPage.isScanning) MdcTheme.Colors.error
+                        else MdcTheme.Colors.primary
+                    )
+                    borderRadius(20f)
+                    alignItems(FlexAlign.CENTER)
+                    justifyContent(FlexJustifyContent.CENTER)
+                    if (!this@ScannerPage.isScanning) {
+                        boxShadow(MdcTheme.Elevation.level1)
+                    }
+                }
+                event {
+                    click {
+                        if (this@ScannerPage.isScanning) this@ScannerPage.stopScanning()
+                        else this@ScannerPage.startScanning()
+                    }
+                }
+                Text {
+                    attr {
+                        text(
+                            if (this@ScannerPage.isScanning) "Stop Scanning"
+                            else "Start Scanning"
+                        )
+                        fontSize(MdcTheme.Typography.labelLarge)
+                        fontWeightSemiBold()
+                        color(
+                            if (this@ScannerPage.isScanning) MdcTheme.Colors.onError
+                            else MdcTheme.Colors.onPrimary
+                        )
+                    }
+                }
             }
 
-            if (this@ScannerPage.isScanning) {
-                MdcBodyText("Scanning...", MdcTheme.Colors.warning)
+            Text {
+                attr {
+                    val message = when {
+                        this@ScannerPage.scanStatus.isNotEmpty() -> this@ScannerPage.scanStatus
+                        this@ScannerPage.isScanning -> "Scanning..."
+                        else -> ""
+                    }
+                    text(message)
+                    fontSize(MdcTheme.Typography.bodyLarge)
+                    color(if (this@ScannerPage.isScanning) MdcTheme.Colors.warning else MdcTheme.Colors.onSurfaceVariant)
+                    marginTop(MdcTheme.Spacing.sm)
+                }
             }
 
             MdcSectionHeader("Recent WiFi")
@@ -101,8 +146,18 @@ class ScannerPage : Pager() {
         }
     }
 
+    private fun closePage() {
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
+    }
+
     private fun startScanning() {
         isScanning = true
+        val result = PlatformScanController.startBackgroundScanning()
+        scanStatus = result.message
+        if (!result.success) {
+            return
+        }
+        refreshData()
         lifecycleScope.launch {
             while (isScanning) {
                 refreshData()
@@ -112,7 +167,10 @@ class ScannerPage : Pager() {
     }
 
     private fun stopScanning() {
+        val result = PlatformScanController.stopBackgroundScanning()
+        scanStatus = result.message
         isScanning = false
+        refreshData()
     }
 
     private fun refreshData() {
