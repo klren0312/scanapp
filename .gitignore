@@ -15,6 +15,7 @@ local.properties
 /ohosApp/build
 gradle-8.2-bin.zip
 *.zip
+.kotlin/errors/
 
 # 任务文档
 task-*.md
