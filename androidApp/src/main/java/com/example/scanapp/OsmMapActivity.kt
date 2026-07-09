@@ -3,8 +3,10 @@ package com.example.scanapp
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.scanapp.database.DatabaseFactory
@@ -27,11 +29,11 @@ class OsmMapActivity : AppCompatActivity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var mapView: MapView
     private lateinit var statusView: TextView
+    private lateinit var drawerOverlay: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "Map"
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         Configuration.getInstance().apply {
             userAgentValue = packageName
@@ -71,6 +73,24 @@ class OsmMapActivity : AppCompatActivity() {
                     setMargins(24, 24, 24, 24)
                 }
             )
+            addView(
+                createMenuButton(),
+                FrameLayout.LayoutParams(
+                    dp(72),
+                    dp(40),
+                    Gravity.TOP or Gravity.END
+                ).apply {
+                    setMargins(24, 24, 24, 24)
+                }
+            )
+            drawerOverlay = createDrawerOverlay()
+            addView(
+                drawerOverlay,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
         }
         setContentView(root)
 
@@ -95,6 +115,78 @@ class OsmMapActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+
+    private fun createMenuButton(): TextView {
+        return TextView(this).apply {
+            text = "Menu"
+            textSize = 14f
+            setTextColor(0xff1565C0.toInt())
+            setBackgroundColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setOnClickListener { drawerOverlay.visibility = View.VISIBLE }
+        }
+    }
+
+    private fun createDrawerOverlay(): FrameLayout {
+        return FrameLayout(this).apply {
+            visibility = View.GONE
+            setBackgroundColor(0x66000000)
+            setOnClickListener { visibility = View.GONE }
+            addView(
+                LinearLayout(this@OsmMapActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.WHITE)
+                    setPadding(dp(16), dp(16), dp(16), dp(16))
+                    isClickable = true
+                    addView(drawerTitle())
+                    addView(drawerItem("Scanner", "Scanner", selected = false))
+                    addView(drawerItem("Devices", "DeviceList", selected = false))
+                    addView(drawerItem("Statistics", "Statistics", selected = false))
+                    addView(drawerItem("Map", "Map", selected = true))
+                    addView(drawerItem("Settings", "Settings", selected = false))
+                },
+                FrameLayout.LayoutParams(
+                    dp(280),
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    Gravity.START
+                )
+            )
+        }
+    }
+
+    private fun drawerTitle(): TextView {
+        return TextView(this).apply {
+            text = "ScanApp"
+            textSize = 20f
+            setTextColor(0xff1C1B1F.toInt())
+            setPadding(0, 0, 0, dp(16))
+        }
+    }
+
+    private fun drawerItem(label: String, pageName: String, selected: Boolean): TextView {
+        return TextView(this).apply {
+            text = label
+            textSize = 14f
+            setTextColor(if (selected) 0xff001D36.toInt() else 0xff1C1B1F.toInt())
+            setBackgroundColor(if (selected) 0xffD1E4FF.toInt() else Color.TRANSPARENT)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), 0, dp(8), 0)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(44)
+            ).apply {
+                bottomMargin = dp(4)
+            }
+            setOnClickListener { navigateFromDrawer(pageName) }
+        }
+    }
+
+    private fun navigateFromDrawer(pageName: String) {
+        drawerOverlay.visibility = View.GONE
+        if (pageName == "Map") return
+        KuiklyRenderActivity.start(this, pageName)
+        finish()
     }
 
     private fun loadLocations() {
@@ -144,5 +236,9 @@ class OsmMapActivity : AppCompatActivity() {
         val sign = if (tenths < 0) "-" else ""
         val absolute = kotlin.math.abs(tenths)
         return "$sign${absolute / 10}.${absolute % 10}"
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 }

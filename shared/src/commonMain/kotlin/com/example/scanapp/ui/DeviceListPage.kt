@@ -6,23 +6,24 @@ import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Scroller
-import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
 @Page("DeviceList")
 class DeviceListPage : Pager() {
 
-    private var selectedTab by observable(0)
-    private var deviceListText by observable("No WiFi records")
+    private var wifiDeviceCount by observable(0)
+    private var bluetoothDeviceCount by observable(0)
+    private var wifiSeenTotal by observable(0)
+    private var bluetoothSeenTotal by observable(0)
+    private var drawerOpen by observable(false)
     private var wifiRecords: List<WifiScanRecord> = emptyList()
     private var bluetoothRecords: List<BluetoothScanRecord> = emptyList()
 
@@ -32,7 +33,6 @@ class DeviceListPage : Pager() {
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
-        val root = this
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
@@ -41,16 +41,16 @@ class DeviceListPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTopBar("Devices") { this@DeviceListPage.closePage() }
+            MdcMenuTopBar("Devices") { this@DeviceListPage.drawerOpen = true }
 
-            View {
-                attr {
-                    flexDirection(FlexDirection.ROW)
-                    justifyContent(FlexJustifyContent.CENTER)
-                    marginTop(MdcTheme.Spacing.sm)
-                }
-                this@DeviceListPage.run { root.MdcCustomTab("WiFi", this@DeviceListPage.selectedTab == 0) { this@DeviceListPage.selectTab(0) } }
-                this@DeviceListPage.run { root.MdcCustomTab("Bluetooth", this@DeviceListPage.selectedTab == 1) { this@DeviceListPage.selectTab(1) } }
+            MdcCardRow {
+                MdcStatBadge("WiFi Devices", "${this@DeviceListPage.wifiDeviceCount}", MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth Devices", "${this@DeviceListPage.bluetoothDeviceCount}", MdcTheme.Colors.bluetooth)
+            }
+
+            MdcCardRow(elevation = MdcTheme.Elevation.level0) {
+                MdcStatBadge("WiFi Seen", "${this@DeviceListPage.wifiSeenTotal}", MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth Seen", "${this@DeviceListPage.bluetoothSeenTotal}", MdcTheme.Colors.bluetooth)
             }
 
             Scroller {
@@ -58,20 +58,68 @@ class DeviceListPage : Pager() {
                     flex(1f)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                Text {
+                View {
                     attr {
-                        text(this@DeviceListPage.deviceListText)
-                        fontSize(MdcTheme.Typography.bodyMedium)
-                        color(MdcTheme.Colors.onSurface)
-                        lineHeight(22f)
+                        flexDirection(FlexDirection.ROW)
+                    }
+                    View {
+                        attr {
+                            flex(1f)
+                            flexDirection(FlexDirection.COLUMN)
+                            marginRight(MdcTheme.Spacing.sm)
+                        }
+                        MdcSectionHeader("WiFi")
+                        val wifiColumn = this
+                        this@DeviceListPage.wifiRecords.forEach {
+                            wifiColumn.MdcDeviceCard(
+                                title = it.ssid.ifEmpty { "Unknown" },
+                                identity = it.bssid,
+                                primaryMetric = "${it.signalStrength} dBm",
+                                secondaryMetric = "${it.frequency} MHz",
+                                count = it.count,
+                                color = MdcTheme.Colors.wifi
+                            ) {
+                                this@DeviceListPage.openDeviceDetail("wifi", it.bssid)
+                            }
+                        }
+                        if (this@DeviceListPage.wifiRecords.isEmpty()) {
+                            MdcBodyText("No WiFi records", MdcTheme.Colors.onSurfaceVariant)
+                        }
+                    }
+
+                    View {
+                        attr {
+                            flex(1f)
+                            flexDirection(FlexDirection.COLUMN)
+                        }
+                        MdcSectionHeader("Bluetooth")
+                        val bluetoothColumn = this
+                        this@DeviceListPage.bluetoothRecords.forEach {
+                            bluetoothColumn.MdcDeviceCard(
+                                title = it.name.ifEmpty { "Unknown" },
+                                identity = it.address,
+                                primaryMetric = "${it.rssi} dBm",
+                                secondaryMetric = it.deviceType,
+                                count = it.count,
+                                color = MdcTheme.Colors.bluetooth
+                            ) {
+                                this@DeviceListPage.openDeviceDetail("bluetooth", it.address)
+                            }
+                        }
+                        if (this@DeviceListPage.bluetoothRecords.isEmpty()) {
+                            MdcBodyText("No Bluetooth records", MdcTheme.Colors.onSurfaceVariant)
+                        }
                     }
                 }
             }
-        }
-    }
 
-    private fun ViewContainer<*, *>.MdcCustomTab(label: String, selected: Boolean, onClick: () -> Unit) {
-        MdcTab(label = label, selected = selected, onClick = onClick)
+            MdcNavigationDrawerHost(
+                isOpen = { this@DeviceListPage.drawerOpen },
+                currentPage = { "DeviceList" },
+                onClose = { this@DeviceListPage.drawerOpen = false },
+                onNavigate = { this@DeviceListPage.navigateTo(it) }
+            )
+        }
     }
 
     private fun loadData() {
@@ -80,36 +128,31 @@ class DeviceListPage : Pager() {
                 val db = DatabaseFactory.getDatabase()
                 wifiRecords = WifiScanDao(db).getAllRecords().sortedByDescending { it.signalStrength }
                 bluetoothRecords = BluetoothScanDao(db).getAllRecords().sortedByDescending { it.rssi }
-                updateVisibleList()
+                wifiDeviceCount = wifiRecords.size
+                bluetoothDeviceCount = bluetoothRecords.size
+                wifiSeenTotal = wifiRecords.sumOf { it.count }
+                bluetoothSeenTotal = bluetoothRecords.sumOf { it.count }
             }.onFailure { it.printStackTrace() }
         }
     }
 
-    private fun selectTab(tab: Int) {
-        selectedTab = tab
-        updateVisibleList()
+    private fun openDeviceDetail(deviceType: String, key: String) {
+        val pageData = JSONObject().apply {
+            put("deviceType", deviceType)
+            put("deviceKey", key)
+        }
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage("DeviceDetail", pageData)
     }
 
-    private fun updateVisibleList() {
-        deviceListText = if (selectedTab == 0) {
-            formatWifiRecords(wifiRecords)
-        } else {
-            formatBluetoothRecords(bluetoothRecords)
+    private fun navigateTo(pageName: String) {
+        drawerOpen = false
+        if (pageName == "DeviceList") return
+        if (pageName == "Scanner") {
+            closePage()
+            return
         }
-    }
-
-    private fun formatWifiRecords(records: List<WifiScanRecord>): String {
-        if (records.isEmpty()) return "No WiFi records"
-        return records.joinToString(separator = "\n\n") {
-            "${it.ssid.ifEmpty { "Unknown" }}  ${it.signalStrength} dBm\n${it.bssid}\nSeen ${it.count} times"
-        }
-    }
-
-    private fun formatBluetoothRecords(records: List<BluetoothScanRecord>): String {
-        if (records.isEmpty()) return "No Bluetooth records"
-        return records.joinToString(separator = "\n\n") {
-            "${it.name.ifEmpty { "Unknown" }}  ${it.rssi} dBm\n${it.address}\nSeen ${it.count} times"
-        }
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(pageName = pageName)
+        closePage()
     }
 
     private fun closePage() {

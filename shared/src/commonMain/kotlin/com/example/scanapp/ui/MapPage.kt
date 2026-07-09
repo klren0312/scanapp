@@ -21,6 +21,7 @@ class MapPage : Pager() {
 
     private var locationRecords: List<LocationRecord> = emptyList()
     private var totalCount by observable(0L)
+    private var drawerOpen by observable(false)
 
     override fun created() {
         super.created()
@@ -37,7 +38,7 @@ class MapPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTopBar("Locations") { this@MapPage.closePage() }
+            MdcMenuTopBar("Locations") { this@MapPage.drawerOpen = true }
             MdcBodyText("Total records: ${this@MapPage.totalCount}", MdcTheme.Colors.onSurfaceVariant)
 
             Scroller {
@@ -52,6 +53,13 @@ class MapPage : Pager() {
                     MdcBodyText("No location records", MdcTheme.Colors.onSurfaceVariant)
                 }
             }
+
+            MdcNavigationDrawerHost(
+                isOpen = { this@MapPage.drawerOpen },
+                currentPage = { "Map" },
+                onClose = { this@MapPage.drawerOpen = false },
+                onNavigate = { this@MapPage.navigateTo(it) }
+            )
         }
     }
 
@@ -93,6 +101,17 @@ class MapPage : Pager() {
         val sign = if (tenths < 0) "-" else ""
         val absolute = kotlin.math.abs(tenths)
         return "$sign${absolute / 10}.${absolute % 10}"
+    }
+
+    private fun navigateTo(pageName: String) {
+        drawerOpen = false
+        if (pageName == "Map") return
+        if (pageName == "Scanner") {
+            closePage()
+            return
+        }
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(pageName = pageName)
+        closePage()
     }
 
     private fun closePage() {

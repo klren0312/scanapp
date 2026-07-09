@@ -7,11 +7,13 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.tencent.kuikly.core.render.android.css.ktx.toMap
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.context.KuiklyRenderCoreExecuteModeBase
 import com.tencent.kuikly.core.render.android.exception.ErrorReason
 import com.tencent.kuikly.core.render.android.expand.KuiklyBaseView
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
+import org.json.JSONObject
 
 class KuiklyRenderActivity : AppCompatActivity() {
 
@@ -24,7 +26,7 @@ class KuiklyRenderActivity : AppCompatActivity() {
         pageName = intent.getStringExtra("pageName") ?: "Scanner"
         kuiklyView = KuiklyBaseView(this, createKuiklyDelegate())
         setContentView(kuiklyView)
-        kuiklyView.onAttach("", pageName, emptyMap())
+        kuiklyView.onAttach("", pageName, readPageData())
     }
 
     override fun onResume() {
@@ -84,12 +86,24 @@ class KuiklyRenderActivity : AppCompatActivity() {
         }
 
         fun start(context: Context, pageName: String) {
+            start(context, pageName, JSONObject())
+        }
+
+        fun start(context: Context, pageName: String, pageData: JSONObject) {
             val intent = Intent(context, KuiklyRenderActivity::class.java)
             intent.putExtra("pageName", pageName)
+            intent.putExtra("pageData", pageData.toString())
             if (context !is Activity) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
         }
+    }
+
+    private fun readPageData(): Map<String, Any> {
+        val pageDataJson = intent.getStringExtra("pageData") ?: return emptyMap()
+        return runCatching {
+            JSONObject(pageDataJson).toMap()
+        }.getOrDefault(emptyMap())
     }
 }

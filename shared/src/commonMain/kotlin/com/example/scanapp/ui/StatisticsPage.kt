@@ -23,6 +23,7 @@ class StatisticsPage : Pager() {
     private var totalWifi by observable(0L)
     private var totalBluetooth by observable(0L)
     private var totalLocations by observable(0L)
+    private var drawerOpen by observable(false)
     private var topWifi: List<WifiScanRecord> = emptyList()
     private var topBluetooth: List<BluetoothScanRecord> = emptyList()
 
@@ -41,7 +42,7 @@ class StatisticsPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTopBar("Statistics") { this@StatisticsPage.closePage() }
+            MdcMenuTopBar("Statistics") { this@StatisticsPage.drawerOpen = true }
 
             MdcCardRow {
                 MdcStatBadge("WiFi", "${this@StatisticsPage.totalWifi}", MdcTheme.Colors.wifi)
@@ -66,6 +67,13 @@ class StatisticsPage : Pager() {
                 }
                 if (this@StatisticsPage.topBluetooth.isEmpty()) MdcBodyText("No Bluetooth data", MdcTheme.Colors.onSurfaceVariant)
             }
+
+            MdcNavigationDrawerHost(
+                isOpen = { this@StatisticsPage.drawerOpen },
+                currentPage = { "Statistics" },
+                onClose = { this@StatisticsPage.drawerOpen = false },
+                onNavigate = { this@StatisticsPage.navigateTo(it) }
+            )
         }
     }
 
@@ -92,6 +100,17 @@ class StatisticsPage : Pager() {
                 topBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
             }.onFailure { it.printStackTrace() }
         }
+    }
+
+    private fun navigateTo(pageName: String) {
+        drawerOpen = false
+        if (pageName == "Statistics") return
+        if (pageName == "Scanner") {
+            closePage()
+            return
+        }
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(pageName = pageName)
+        closePage()
     }
 
     private fun closePage() {

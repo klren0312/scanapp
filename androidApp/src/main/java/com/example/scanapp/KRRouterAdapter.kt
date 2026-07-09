@@ -17,7 +17,7 @@ object KRRouterAdapter : IKRRouterAdapter {
             return
         }
 
-        KuiklyRenderActivity.start(context, pageName)
+        KuiklyRenderActivity.start(context, pageName, pageData)
     }
 
     override fun closePage(context: Context) {

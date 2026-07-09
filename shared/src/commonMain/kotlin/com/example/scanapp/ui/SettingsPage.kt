@@ -25,6 +25,7 @@ class SettingsPage : Pager() {
     private var totalWifi by observable(0L)
     private var totalBluetooth by observable(0L)
     private var totalLocations by observable(0L)
+    private var drawerOpen by observable(false)
 
     override fun created() {
         super.created()
@@ -41,7 +42,7 @@ class SettingsPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTopBar("Settings") { this@SettingsPage.closePage() }
+            MdcMenuTopBar("Settings") { this@SettingsPage.drawerOpen = true }
 
             Scroller {
                 attr {
@@ -78,6 +79,13 @@ class SettingsPage : Pager() {
                 MdcBodyText("ScanApp v1.0")
                 MdcCaption("WiFi / Bluetooth scanner built with Kuikly KMP")
             }
+
+            MdcNavigationDrawerHost(
+                isOpen = { this@SettingsPage.drawerOpen },
+                currentPage = { "Settings" },
+                onClose = { this@SettingsPage.drawerOpen = false },
+                onNavigate = { this@SettingsPage.navigateTo(it) }
+            )
         }
     }
 
@@ -138,6 +146,17 @@ class SettingsPage : Pager() {
                 totalLocations = LocationDao(db).getCount()
             }.onFailure { it.printStackTrace() }
         }
+    }
+
+    private fun navigateTo(pageName: String) {
+        drawerOpen = false
+        if (pageName == "Settings") return
+        if (pageName == "Scanner") {
+            closePage()
+            return
+        }
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(pageName = pageName)
+        closePage()
     }
 
     private fun closePage() {

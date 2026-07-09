@@ -5,9 +5,11 @@ import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.BoxShadow
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
+import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
@@ -69,6 +71,217 @@ internal fun ViewContainer<*, *>.MdcTopBar(
                 color(MdcTheme.Colors.onBackground)
             }
         }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcMenuTopBar(
+    title: String,
+    onMenu: () -> Unit
+) {
+    View {
+        attr {
+            flexDirection(FlexDirection.ROW)
+            alignItems(FlexAlign.CENTER)
+            padding(top = MdcTheme.Spacing.xs, bottom = MdcTheme.Spacing.sm)
+        }
+        View {
+            attr {
+                width(72f)
+                height(40f)
+                borderRadius(20f)
+                backgroundColor(MdcTheme.Colors.surface)
+                alignItems(FlexAlign.CENTER)
+                justifyContent(FlexJustifyContent.CENTER)
+                marginRight(MdcTheme.Spacing.sm)
+            }
+            event {
+                click { onMenu() }
+            }
+            Text {
+                attr {
+                    text("Menu")
+                    fontSize(MdcTheme.Typography.labelLarge)
+                    fontWeightSemiBold()
+                    color(MdcTheme.Colors.primary)
+                }
+            }
+        }
+        Text {
+            attr {
+                text(title)
+                flex(1f)
+                fontSize(MdcTheme.Typography.headlineMedium)
+                fontWeightBold()
+                color(MdcTheme.Colors.onBackground)
+            }
+        }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcNavigationDrawer(
+    currentPage: String,
+    onClose: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    View {
+        attr {
+            positionType(FlexPositionType.ABSOLUTE)
+            absolutePositionAllZero()
+            flexDirection(FlexDirection.ROW)
+            backgroundColor(Color(0x66000000))
+            zIndex(20)
+        }
+        View {
+            attr {
+                width(280f)
+                backgroundColor(MdcTheme.Colors.surface)
+                padding(MdcTheme.Spacing.md)
+                boxShadow(MdcTheme.Elevation.level3)
+            }
+            Text {
+                attr {
+                    text("ScanApp")
+                    fontSize(MdcTheme.Typography.titleLarge)
+                    fontWeightBold()
+                    color(MdcTheme.Colors.onSurface)
+                    marginBottom(MdcTheme.Spacing.md)
+                }
+            }
+            MdcDrawerItem("Scanner", "Scanner", currentPage, onNavigate)
+            MdcDrawerItem("Devices", "DeviceList", currentPage, onNavigate)
+            MdcDrawerItem("Statistics", "Statistics", currentPage, onNavigate)
+            MdcDrawerItem("Map", "Map", currentPage, onNavigate)
+            MdcDrawerItem("Settings", "Settings", currentPage, onNavigate)
+        }
+        View {
+            attr {
+                flex(1f)
+            }
+            event {
+                click { onClose() }
+            }
+        }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcNavigationDrawerHost(
+    isOpen: () -> Boolean,
+    currentPage: () -> String,
+    onClose: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    vif({ isOpen() }) {
+        MdcNavigationDrawer(
+            currentPage = currentPage(),
+            onClose = onClose,
+            onNavigate = onNavigate
+        )
+    }
+}
+
+private fun ViewContainer<*, *>.MdcDrawerItem(
+    label: String,
+    pageName: String,
+    currentPage: String,
+    onNavigate: (String) -> Unit
+) {
+    val selected = pageName == currentPage
+    View {
+        attr {
+            padding(top = 12f, bottom = 12f, left = MdcTheme.Spacing.sm, right = MdcTheme.Spacing.sm)
+            marginBottom(MdcTheme.Spacing.xs)
+            borderRadius(8f)
+            backgroundColor(if (selected) MdcTheme.Colors.primaryContainer else Color.TRANSPARENT)
+        }
+        event {
+            click { onNavigate(pageName) }
+        }
+        Text {
+            attr {
+                text(label)
+                fontSize(MdcTheme.Typography.bodyLarge)
+                fontWeightSemiBold()
+                color(if (selected) MdcTheme.Colors.onPrimaryContainer else MdcTheme.Colors.onSurface)
+            }
+        }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcRecordColumn(
+    title: String,
+    body: String,
+    accentColor: Color,
+    rightMargin: Boolean = false
+) {
+    View {
+        attr {
+            flex(1f)
+            flexDirection(FlexDirection.COLUMN)
+            padding(MdcTheme.Spacing.card)
+            backgroundColor(MdcTheme.Colors.surface)
+            borderRadius(12f)
+            boxShadow(MdcTheme.Elevation.level1)
+            if (rightMargin) {
+                marginRight(MdcTheme.Spacing.sm)
+            }
+        }
+        Text {
+            attr {
+                text(title)
+                fontSize(MdcTheme.Typography.titleMedium)
+                fontWeightSemiBold()
+                color(accentColor)
+                marginBottom(MdcTheme.Spacing.sm)
+            }
+        }
+        Text {
+            attr {
+                text(body)
+                fontSize(MdcTheme.Typography.bodySmall)
+                color(MdcTheme.Colors.onSurface)
+                lineHeight(18f)
+            }
+        }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcDeviceCard(
+    title: String,
+    identity: String,
+    primaryMetric: String,
+    secondaryMetric: String,
+    count: Int,
+    color: Color,
+    onClick: () -> Unit
+) {
+    MdcCard(onClick = onClick) {
+        Text {
+            attr {
+                text(title)
+                fontSize(MdcTheme.Typography.bodyLarge)
+                fontWeightSemiBold()
+                color(MdcTheme.Colors.onSurface)
+            }
+        }
+        Text {
+            attr {
+                text(identity)
+                fontSize(MdcTheme.Typography.bodySmall)
+                color(MdcTheme.Colors.onSurfaceVariant)
+                lineHeight(16f)
+                marginTop(2f)
+            }
+        }
+        View {
+            attr {
+                flexDirection(FlexDirection.ROW)
+                justifyContent(FlexJustifyContent.SPACE_BETWEEN)
+                marginTop(MdcTheme.Spacing.sm)
+            }
+            MdcCaption(primaryMetric, color)
+            MdcCaption(secondaryMetric)
+        }
+        MdcCaption("Seen $count times", MdcTheme.Colors.secondary)
     }
 }
 

@@ -29,6 +29,7 @@ class ScannerPage : Pager() {
     private var bluetoothCount by observable(0L)
     private var recentWifiText by observable("No WiFi records")
     private var recentBluetoothText by observable("No Bluetooth records")
+    private var drawerOpen by observable(false)
 
     override fun created() {
         super.created()
@@ -36,7 +37,6 @@ class ScannerPage : Pager() {
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
-        val root = this
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
@@ -45,7 +45,7 @@ class ScannerPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.closePage() }
+            MdcMenuTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.drawerOpen = true }
 
             MdcCardRow {
                 MdcStatBadge("WiFi Networks", "${this@ScannerPage.wifiCount}", MdcTheme.Colors.wifi)
@@ -100,57 +100,34 @@ class ScannerPage : Pager() {
                 }
             }
 
-            MdcSectionHeader("Recent WiFi")
+            MdcSectionHeader("Recent Scans")
             Scroller {
                 attr {
                     flex(1f)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                Text {
+                View {
                     attr {
-                        text(this@ScannerPage.recentWifiText)
-                        fontSize(MdcTheme.Typography.bodyMedium)
-                        color(MdcTheme.Colors.onSurface)
-                        lineHeight(22f)
+                        flexDirection(FlexDirection.ROW)
                     }
-                }
-
-                MdcSectionHeader("Recent Bluetooth")
-                Text {
-                    attr {
-                        text(this@ScannerPage.recentBluetoothText)
-                        fontSize(MdcTheme.Typography.bodyMedium)
-                        color(MdcTheme.Colors.onSurface)
-                        lineHeight(22f)
-                    }
+                    MdcRecordColumn("WiFi", this@ScannerPage.recentWifiText, MdcTheme.Colors.wifi, rightMargin = true)
+                    MdcRecordColumn("Bluetooth", this@ScannerPage.recentBluetoothText, MdcTheme.Colors.bluetooth)
                 }
             }
 
-            MdcDivider()
-
-            View {
-                attr {
-                    flexDirection(FlexDirection.ROW)
-                    justifyContent(FlexJustifyContent.SPACE_EVENLY)
-                    padding(top = MdcTheme.Spacing.sm, bottom = MdcTheme.Spacing.sm)
-                }
-                this@ScannerPage.run { root.MdcNavButton("Devices", "DeviceList") }
-                this@ScannerPage.run { root.MdcNavButton("Stats", "Statistics") }
-                this@ScannerPage.run { root.MdcNavButton("Map", "Map") }
-                this@ScannerPage.run { root.MdcNavButton("Settings", "Settings") }
-            }
+            MdcNavigationDrawerHost(
+                isOpen = { this@ScannerPage.drawerOpen },
+                currentPage = { "Scanner" },
+                onClose = { this@ScannerPage.drawerOpen = false },
+                onNavigate = { this@ScannerPage.navigateTo(it) }
+            )
         }
     }
 
-    private fun ViewContainer<*, *>.MdcNavButton(label: String, pageName: String) {
-        MdcOutlinedButton(label = label) {
-            this@ScannerPage.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
-                .openPage(pageName = pageName)
-        }
-    }
-
-    private fun closePage() {
-        acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
+    private fun navigateTo(pageName: String) {
+        drawerOpen = false
+        if (pageName == "Scanner") return
+        acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(pageName = pageName)
     }
 
     private fun startScanning() {

@@ -37,6 +37,22 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
+    suspend fun getRecordByBssid(bssid: String): WifiScanRecord? = withContext(Dispatchers.Default) {
+        database.databaseQueries.selectWifiByBssid(bssid).executeAsOneOrNull()?.let {
+            WifiScanRecord(
+                id = it.id,
+                ssid = it.ssid,
+                bssid = it.bssid,
+                signalStrength = it.signalStrength.toInt(),
+                frequency = it.frequency.toInt(),
+                timestamp = it.timestamp,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                count = it.count.toInt()
+            )
+        }
+    }
+
     suspend fun getRecordsPaginated(limit: Int, offset: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
         database.databaseQueries.selectWifiRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
             WifiScanRecord(
