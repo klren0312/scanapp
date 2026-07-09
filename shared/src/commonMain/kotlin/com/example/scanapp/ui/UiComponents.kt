@@ -360,6 +360,7 @@ internal fun ViewContainer<*, *>.MdcCardRow(
             boxShadow(elevation)
             marginTop(MdcTheme.Spacing.sm)
             alignItems(FlexAlign.CENTER)
+            justifyContent(FlexJustifyContent.SPACE_BETWEEN)
         }
         content()
     }
@@ -592,6 +593,7 @@ internal fun ViewContainer<*, *>.MdcStatBadge(
 ) {
     View {
         attr {
+            flex(1f)
             alignItems(FlexAlign.CENTER)
         }
         Text {
