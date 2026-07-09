@@ -5,6 +5,7 @@ import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.service.ExportServiceImpl
+import com.example.scanapp.service.PlatformExportController
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
@@ -93,7 +94,16 @@ class SettingsPage : Pager() {
                 } else {
                     exporter.exportToJson(wifiRecords, bluetoothRecords, locationRecords)
                 }
-                exportResult = "${format.uppercase()} export succeeded (${result.length} chars)"
+                val exportFileResult = PlatformExportController.exportAndShareFile(
+                    fileName = "scanapp-export.$format",
+                    content = result,
+                    mimeType = if (format == "csv") "text/csv" else "application/json"
+                )
+                exportResult = if (exportFileResult.success) {
+                    "${format.uppercase()} export ready: ${exportFileResult.filePath}"
+                } else {
+                    "Export failed: ${exportFileResult.message}"
+                }
             }.onFailure {
                 exportResult = "Export failed: ${it.message}"
                 it.printStackTrace()

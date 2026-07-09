@@ -27,8 +27,8 @@ class ScannerPage : Pager() {
     private var scanStatus by observable("")
     private var wifiCount by observable(0L)
     private var bluetoothCount by observable(0L)
-    private var recentWifi: List<WifiScanRecord> = emptyList()
-    private var recentBluetooth: List<BluetoothScanRecord> = emptyList()
+    private var recentWifiText by observable("No WiFi records")
+    private var recentBluetoothText by observable("No Bluetooth records")
 
     override fun created() {
         super.created()
@@ -75,10 +75,7 @@ class ScannerPage : Pager() {
                 }
                 Text {
                     attr {
-                        text(
-                            if (this@ScannerPage.isScanning) "Stop Scanning"
-                            else "Start Scanning"
-                        )
+                        text(if (this@ScannerPage.isScanning) "Stop Scanning" else "Start Scanning")
                         fontSize(MdcTheme.Typography.labelLarge)
                         fontWeightSemiBold()
                         color(
@@ -109,13 +106,23 @@ class ScannerPage : Pager() {
                     flex(1f)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                this@ScannerPage.recentWifi.forEach { record ->
-                    this@ScannerPage.run { root.MdcScanRecordRow(record.ssid, "${record.signalStrength} dBm") }
+                Text {
+                    attr {
+                        text(this@ScannerPage.recentWifiText)
+                        fontSize(MdcTheme.Typography.bodyMedium)
+                        color(MdcTheme.Colors.onSurface)
+                        lineHeight(22f)
+                    }
                 }
 
                 MdcSectionHeader("Recent Bluetooth")
-                this@ScannerPage.recentBluetooth.forEach { record ->
-                    this@ScannerPage.run { root.MdcScanRecordRow(record.name, "${record.rssi} dBm") }
+                Text {
+                    attr {
+                        text(this@ScannerPage.recentBluetoothText)
+                        fontSize(MdcTheme.Typography.bodyMedium)
+                        color(MdcTheme.Colors.onSurface)
+                        lineHeight(22f)
+                    }
                 }
             }
 
@@ -133,10 +140,6 @@ class ScannerPage : Pager() {
                 this@ScannerPage.run { root.MdcNavButton("Settings", "Settings") }
             }
         }
-    }
-
-    private fun ViewContainer<*, *>.MdcScanRecordRow(name: String, detail: String) {
-        MdcListItem(title = name, subtitle = "", trailing = detail)
     }
 
     private fun ViewContainer<*, *>.MdcNavButton(label: String, pageName: String) {
@@ -181,9 +184,23 @@ class ScannerPage : Pager() {
                 val bluetoothDao = BluetoothScanDao(db)
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
-                recentWifi = wifiDao.getRecordsPaginated(limit = 10, offset = 0)
-                recentBluetooth = bluetoothDao.getRecordsPaginated(limit = 10, offset = 0)
+                recentWifiText = formatWifiRecords(wifiDao.getRecordsPaginated(limit = 10, offset = 0))
+                recentBluetoothText = formatBluetoothRecords(bluetoothDao.getRecordsPaginated(limit = 10, offset = 0))
             }.onFailure { it.printStackTrace() }
+        }
+    }
+
+    private fun formatWifiRecords(records: List<WifiScanRecord>): String {
+        if (records.isEmpty()) return "No WiFi records"
+        return records.joinToString(separator = "\n\n") {
+            "${it.ssid.ifEmpty { "Unknown" }}  ${it.signalStrength} dBm\n${it.bssid}\nSeen ${it.count} times"
+        }
+    }
+
+    private fun formatBluetoothRecords(records: List<BluetoothScanRecord>): String {
+        if (records.isEmpty()) return "No Bluetooth records"
+        return records.joinToString(separator = "\n\n") {
+            "${it.name.ifEmpty { "Unknown" }}  ${it.rssi} dBm\n${it.address}\nSeen ${it.count} times"
         }
     }
 }

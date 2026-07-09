@@ -42,7 +42,10 @@ class AndroidExportService(private val context: Context) : ExportService {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        context.startActivity(Intent.createChooser(shareIntent, "分享文件"))
+        val chooserIntent = Intent.createChooser(shareIntent, "Share file").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooserIntent)
     }
 
     private fun getMimeType(filePath: String): String {

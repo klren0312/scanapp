@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.views.View
 class DeviceListPage : Pager() {
 
     private var selectedTab by observable(0)
+    private var deviceListText by observable("No WiFi records")
     private var wifiRecords: List<WifiScanRecord> = emptyList()
     private var bluetoothRecords: List<BluetoothScanRecord> = emptyList()
 
@@ -48,8 +49,8 @@ class DeviceListPage : Pager() {
                     justifyContent(FlexJustifyContent.CENTER)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                this@DeviceListPage.run { root.MdcCustomTab("WiFi", this@DeviceListPage.selectedTab == 0) { this@DeviceListPage.selectedTab = 0 } }
-                this@DeviceListPage.run { root.MdcCustomTab("Bluetooth", this@DeviceListPage.selectedTab == 1) { this@DeviceListPage.selectedTab = 1 } }
+                this@DeviceListPage.run { root.MdcCustomTab("WiFi", this@DeviceListPage.selectedTab == 0) { this@DeviceListPage.selectTab(0) } }
+                this@DeviceListPage.run { root.MdcCustomTab("Bluetooth", this@DeviceListPage.selectedTab == 1) { this@DeviceListPage.selectTab(1) } }
             }
 
             Scroller {
@@ -57,16 +58,13 @@ class DeviceListPage : Pager() {
                     flex(1f)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                if (this@DeviceListPage.selectedTab == 0) {
-                    this@DeviceListPage.wifiRecords
-                        .sortedByDescending { it.signalStrength }
-                        .forEach { this@DeviceListPage.run { root.MdcDeviceCard(it.ssid, it.bssid, it.signalStrength, it.count) } }
-                    if (this@DeviceListPage.wifiRecords.isEmpty()) MdcBodyText("No WiFi records", MdcTheme.Colors.onSurfaceVariant)
-                } else {
-                    this@DeviceListPage.bluetoothRecords
-                        .sortedByDescending { it.rssi }
-                        .forEach { this@DeviceListPage.run { root.MdcDeviceCard(it.name, it.address, it.rssi, it.count) } }
-                    if (this@DeviceListPage.bluetoothRecords.isEmpty()) MdcBodyText("No Bluetooth records", MdcTheme.Colors.onSurfaceVariant)
+                Text {
+                    attr {
+                        text(this@DeviceListPage.deviceListText)
+                        fontSize(MdcTheme.Typography.bodyMedium)
+                        color(MdcTheme.Colors.onSurface)
+                        lineHeight(22f)
+                    }
                 }
             }
         }
@@ -76,49 +74,41 @@ class DeviceListPage : Pager() {
         MdcTab(label = label, selected = selected, onClick = onClick)
     }
 
-    private fun ViewContainer<*, *>.MdcDeviceCard(name: String, address: String, signal: Int, count: Int) {
-        MdcCard {
-            View {
-                attr {
-                    flexDirection(FlexDirection.ROW)
-                    justifyContent(FlexJustifyContent.SPACE_BETWEEN)
-                    alignItemsCenter()
-                }
-                Text {
-                    attr {
-                        text(name.ifEmpty { "Unknown" })
-                        fontSize(MdcTheme.Typography.bodyLarge)
-                        fontWeightMedium()
-                        color(MdcTheme.Colors.onSurface)
-                    }
-                }
-                Text {
-                    attr {
-                        text("$signal dBm")
-                        fontSize(MdcTheme.Typography.bodySmall)
-                        color(MdcTheme.Colors.onSurfaceVariant)
-                    }
-                }
-            }
-            MdcCaption(address)
-            Text {
-                attr {
-                    text("Seen $count times")
-                    fontSize(MdcTheme.Typography.bodySmall)
-                    color(MdcTheme.Colors.primary)
-                    marginTop(4f)
-                }
-            }
-        }
-    }
-
     private fun loadData() {
         lifecycleScope.launch {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
-                wifiRecords = WifiScanDao(db).getAllRecords()
-                bluetoothRecords = BluetoothScanDao(db).getAllRecords()
+                wifiRecords = WifiScanDao(db).getAllRecords().sortedByDescending { it.signalStrength }
+                bluetoothRecords = BluetoothScanDao(db).getAllRecords().sortedByDescending { it.rssi }
+                updateVisibleList()
             }.onFailure { it.printStackTrace() }
+        }
+    }
+
+    private fun selectTab(tab: Int) {
+        selectedTab = tab
+        updateVisibleList()
+    }
+
+    private fun updateVisibleList() {
+        deviceListText = if (selectedTab == 0) {
+            formatWifiRecords(wifiRecords)
+        } else {
+            formatBluetoothRecords(bluetoothRecords)
+        }
+    }
+
+    private fun formatWifiRecords(records: List<WifiScanRecord>): String {
+        if (records.isEmpty()) return "No WiFi records"
+        return records.joinToString(separator = "\n\n") {
+            "${it.ssid.ifEmpty { "Unknown" }}  ${it.signalStrength} dBm\n${it.bssid}\nSeen ${it.count} times"
+        }
+    }
+
+    private fun formatBluetoothRecords(records: List<BluetoothScanRecord>): String {
+        if (records.isEmpty()) return "No Bluetooth records"
+        return records.joinToString(separator = "\n\n") {
+            "${it.name.ifEmpty { "Unknown" }}  ${it.rssi} dBm\n${it.address}\nSeen ${it.count} times"
         }
     }
 
