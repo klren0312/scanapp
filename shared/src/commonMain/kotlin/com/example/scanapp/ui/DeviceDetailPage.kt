@@ -49,7 +49,7 @@ class DeviceDetailPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcTopBar(this@DeviceDetailPage.title) { this@DeviceDetailPage.closePage() }
+            MdcTopBar({ this@DeviceDetailPage.title }) { this@DeviceDetailPage.closePage() }
 
             Scroller {
                 attr {
@@ -60,20 +60,20 @@ class DeviceDetailPage : Pager() {
 
                 MdcSectionHeader("Device Data")
                 this@DeviceDetailPage.run {
-                    scroller.MdcDetailBlock(this@DeviceDetailPage.detailText, MdcTheme.Colors.primary)
+                    scroller.MdcDetailBlock({ this@DeviceDetailPage.detailText }, MdcTheme.Colors.primary)
                 }
 
                 MdcSectionHeader("Location")
                 this@DeviceDetailPage.run {
-                    scroller.MdcDetailBlock(this@DeviceDetailPage.locationText, MdcTheme.Colors.secondary)
+                    scroller.MdcDetailBlock({ this@DeviceDetailPage.locationText }, MdcTheme.Colors.secondary)
                 }
 
                 MdcSectionHeader("Map")
                 this@DeviceDetailPage.run {
                     scroller.MdcInlineMapPreview(
-                        coordinate = this@DeviceDetailPage.mapCoordinateText,
-                        meta = this@DeviceDetailPage.mapMetaText,
-                        nearby = this@DeviceDetailPage.nearbyText
+                        coordinate = { this@DeviceDetailPage.mapCoordinateText },
+                        meta = { this@DeviceDetailPage.mapMetaText },
+                        nearby = { this@DeviceDetailPage.nearbyText }
                     )
                 }
                 MdcOutlinedButton("Back to Devices") {
@@ -83,7 +83,7 @@ class DeviceDetailPage : Pager() {
         }
     }
 
-    private fun ViewContainer<*, *>.MdcDetailBlock(text: String, color: Color) {
+    private fun ViewContainer<*, *>.MdcDetailBlock(text: () -> String, color: Color) {
         MdcCard(elevation = MdcTheme.Elevation.level1) {
             View {
                 attr {
@@ -102,7 +102,7 @@ class DeviceDetailPage : Pager() {
             }
             Text {
                 attr {
-                    this.text(text)
+                    this.text(text())
                     fontSize(MdcTheme.Typography.bodyMedium)
                     color(MdcTheme.Colors.onSurface)
                     lineHeight(20f)
@@ -111,11 +111,11 @@ class DeviceDetailPage : Pager() {
         }
     }
 
-    private fun ViewContainer<*, *>.MdcInlineMapPreview(coordinate: String, meta: String, nearby: String) {
+    private fun ViewContainer<*, *>.MdcInlineMapPreview(coordinate: () -> String, meta: () -> String, nearby: () -> String) {
         MdcCard(elevation = MdcTheme.Elevation.level1) {
             Text {
                 attr {
-                    text(coordinate)
+                    text(coordinate())
                     fontSize(MdcTheme.Typography.bodyLarge)
                     fontWeightSemiBold()
                     color(MdcTheme.Colors.onSurface)
@@ -123,7 +123,7 @@ class DeviceDetailPage : Pager() {
             }
             Text {
                 attr {
-                    text(meta)
+                    text(meta())
                     fontSize(MdcTheme.Typography.bodySmall)
                     color(MdcTheme.Colors.onSurfaceVariant)
                     marginTop(2f)
@@ -177,7 +177,7 @@ class DeviceDetailPage : Pager() {
             }
             Text {
                 attr {
-                    text(nearby)
+                    text(nearby())
                     fontSize(MdcTheme.Typography.bodySmall)
                     color(MdcTheme.Colors.onSurface)
                     lineHeight(18f)

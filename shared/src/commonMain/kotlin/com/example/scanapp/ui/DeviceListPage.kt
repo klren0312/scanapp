@@ -9,11 +9,14 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.directives.vfor
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.View
 
@@ -25,8 +28,8 @@ class DeviceListPage : Pager() {
     private var wifiSeenTotal by observable(0)
     private var bluetoothSeenTotal by observable(0)
     private var drawerOpen by observable(false)
-    private var wifiRecords by observable(emptyList<WifiScanRecord>())
-    private var bluetoothRecords by observable(emptyList<BluetoothScanRecord>())
+    private var wifiRecords by observableList<WifiScanRecord>()
+    private var bluetoothRecords by observableList<BluetoothScanRecord>()
 
     override fun created() {
         super.created()
@@ -51,13 +54,13 @@ class DeviceListPage : Pager() {
             MdcMenuTopBar("Devices") { this@DeviceListPage.drawerOpen = true }
 
             MdcCardRow {
-                MdcStatBadge("WiFi Devices", "${this@DeviceListPage.wifiDeviceCount}", MdcTheme.Colors.wifi)
-                MdcStatBadge("Bluetooth Devices", "${this@DeviceListPage.bluetoothDeviceCount}", MdcTheme.Colors.bluetooth)
+                MdcStatBadge("WiFi Devices", { "${this@DeviceListPage.wifiDeviceCount}" }, MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth Devices", { "${this@DeviceListPage.bluetoothDeviceCount}" }, MdcTheme.Colors.bluetooth)
             }
 
             MdcCardRow(elevation = MdcTheme.Elevation.level0) {
-                MdcStatBadge("WiFi Seen", "${this@DeviceListPage.wifiSeenTotal}", MdcTheme.Colors.wifi)
-                MdcStatBadge("Bluetooth Seen", "${this@DeviceListPage.bluetoothSeenTotal}", MdcTheme.Colors.bluetooth)
+                MdcStatBadge("WiFi Seen", { "${this@DeviceListPage.wifiSeenTotal}" }, MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth Seen", { "${this@DeviceListPage.bluetoothSeenTotal}" }, MdcTheme.Colors.bluetooth)
             }
 
             Scroller {
@@ -76,20 +79,19 @@ class DeviceListPage : Pager() {
                             marginRight(MdcTheme.Spacing.sm)
                         }
                         MdcSectionHeader("WiFi")
-                        val wifiColumn = this
-                        this@DeviceListPage.wifiRecords.forEach {
-                            wifiColumn.MdcDeviceCard(
-                                title = it.ssid.ifEmpty { "Unknown" },
-                                identity = it.bssid,
-                                primaryMetric = "${it.signalStrength} dBm",
-                                secondaryMetric = "${it.frequency} MHz",
-                                count = it.count,
+                        vfor({ this@DeviceListPage.wifiRecords }) { record ->
+                            MdcDeviceCard(
+                                title = record.ssid.ifEmpty { "Unknown" },
+                                identity = record.bssid,
+                                primaryMetric = "${record.signalStrength} dBm",
+                                secondaryMetric = "${record.frequency} MHz",
+                                count = record.count,
                                 color = MdcTheme.Colors.wifi
                             ) {
-                                this@DeviceListPage.openDeviceDetail("wifi", it.bssid)
+                                this@DeviceListPage.openDeviceDetail("wifi", record.bssid)
                             }
                         }
-                        if (this@DeviceListPage.wifiRecords.isEmpty()) {
+                        vif({ this@DeviceListPage.wifiDeviceCount == 0 }) {
                             MdcBodyText("No WiFi records", MdcTheme.Colors.onSurfaceVariant)
                         }
                     }
@@ -100,20 +102,19 @@ class DeviceListPage : Pager() {
                             flexDirection(FlexDirection.COLUMN)
                         }
                         MdcSectionHeader("Bluetooth")
-                        val bluetoothColumn = this
-                        this@DeviceListPage.bluetoothRecords.forEach {
-                            bluetoothColumn.MdcDeviceCard(
-                                title = it.name.ifEmpty { "Unknown" },
-                                identity = it.address,
-                                primaryMetric = "${it.rssi} dBm",
-                                secondaryMetric = it.deviceType,
-                                count = it.count,
+                        vfor({ this@DeviceListPage.bluetoothRecords }) { record ->
+                            MdcDeviceCard(
+                                title = record.name.ifEmpty { "Unknown" },
+                                identity = record.address,
+                                primaryMetric = "${record.rssi} dBm",
+                                secondaryMetric = record.deviceType,
+                                count = record.count,
                                 color = MdcTheme.Colors.bluetooth
                             ) {
-                                this@DeviceListPage.openDeviceDetail("bluetooth", it.address)
+                                this@DeviceListPage.openDeviceDetail("bluetooth", record.address)
                             }
                         }
-                        if (this@DeviceListPage.bluetoothRecords.isEmpty()) {
+                        vif({ this@DeviceListPage.bluetoothDeviceCount == 0 }) {
                             MdcBodyText("No Bluetooth records", MdcTheme.Colors.onSurfaceVariant)
                         }
                     }
@@ -133,12 +134,20 @@ class DeviceListPage : Pager() {
         lifecycleScope.launch {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
-                wifiRecords = WifiScanDao(db).getAllRecords().sortedByDescending { it.signalStrength }
-                bluetoothRecords = BluetoothScanDao(db).getAllRecords().sortedByDescending { it.rssi }
-                wifiDeviceCount = wifiRecords.size
-                bluetoothDeviceCount = bluetoothRecords.size
-                wifiSeenTotal = wifiRecords.sumOf { it.count }
-                bluetoothSeenTotal = bluetoothRecords.sumOf { it.count }
+                val latestWifiRecords = WifiScanDao(db).getAllRecords().sortedByDescending { it.signalStrength }
+                val latestBluetoothRecords = BluetoothScanDao(db).getAllRecords().sortedByDescending { it.rssi }
+                if (wifiRecords != latestWifiRecords) {
+                    wifiRecords.clear()
+                    wifiRecords.addAll(latestWifiRecords)
+                }
+                if (bluetoothRecords != latestBluetoothRecords) {
+                    bluetoothRecords.clear()
+                    bluetoothRecords.addAll(latestBluetoothRecords)
+                }
+                wifiDeviceCount = latestWifiRecords.size
+                bluetoothDeviceCount = latestBluetoothRecords.size
+                wifiSeenTotal = latestWifiRecords.sumOf { it.count }
+                bluetoothSeenTotal = latestBluetoothRecords.sumOf { it.count }
             }.onFailure { it.printStackTrace() }
         }
     }

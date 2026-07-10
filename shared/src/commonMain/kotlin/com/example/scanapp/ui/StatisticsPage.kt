@@ -11,10 +11,13 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.directives.vforIndex
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.View
 
@@ -25,8 +28,8 @@ class StatisticsPage : Pager() {
     private var totalBluetooth by observable(0L)
     private var totalLocations by observable(0L)
     private var drawerOpen by observable(false)
-    private var topWifi by observable(emptyList<WifiScanRecord>())
-    private var topBluetooth by observable(emptyList<BluetoothScanRecord>())
+    private var topWifi by observableList<WifiScanRecord>()
+    private var topBluetooth by observableList<BluetoothScanRecord>()
 
     override fun created() {
         super.created()
@@ -40,7 +43,6 @@ class StatisticsPage : Pager() {
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
-        val root = this
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
@@ -52,9 +54,9 @@ class StatisticsPage : Pager() {
             MdcMenuTopBar("Statistics") { this@StatisticsPage.drawerOpen = true }
 
             MdcCardRow {
-                MdcStatBadge("WiFi", "${this@StatisticsPage.totalWifi}", MdcTheme.Colors.wifi)
-                MdcStatBadge("Bluetooth", "${this@StatisticsPage.totalBluetooth}", MdcTheme.Colors.bluetooth)
-                MdcStatBadge("Locations", "${this@StatisticsPage.totalLocations}", MdcTheme.Colors.warning)
+                MdcStatBadge("WiFi", { "${this@StatisticsPage.totalWifi}" }, MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth", { "${this@StatisticsPage.totalBluetooth}" }, MdcTheme.Colors.bluetooth)
+                MdcStatBadge("Locations", { "${this@StatisticsPage.totalLocations}" }, MdcTheme.Colors.warning)
             }
 
             Scroller {
@@ -63,16 +65,26 @@ class StatisticsPage : Pager() {
                     marginTop(MdcTheme.Spacing.sm)
                 }
                 MdcSectionHeader("Top WiFi")
-                this@StatisticsPage.topWifi.forEachIndexed { index, record ->
-                    this@StatisticsPage.run { root.MdcRankingRow(index, record.ssid, record.count, MdcTheme.Colors.wifi) }
+                vforIndex({ this@StatisticsPage.topWifi }) { record, index, _ ->
+                    val itemContainer = this
+                    this@StatisticsPage.run {
+                        itemContainer.MdcRankingRow(index, record.ssid, record.count, MdcTheme.Colors.wifi)
+                    }
                 }
-                if (this@StatisticsPage.topWifi.isEmpty()) MdcBodyText("No WiFi data", MdcTheme.Colors.onSurfaceVariant)
+                vif({ this@StatisticsPage.totalWifi == 0L }) {
+                    MdcBodyText("No WiFi data", MdcTheme.Colors.onSurfaceVariant)
+                }
 
                 MdcSectionHeader("Top Bluetooth")
-                this@StatisticsPage.topBluetooth.forEachIndexed { index, record ->
-                    this@StatisticsPage.run { root.MdcRankingRow(index, record.name, record.count, MdcTheme.Colors.bluetooth) }
+                vforIndex({ this@StatisticsPage.topBluetooth }) { record, index, _ ->
+                    val itemContainer = this
+                    this@StatisticsPage.run {
+                        itemContainer.MdcRankingRow(index, record.name, record.count, MdcTheme.Colors.bluetooth)
+                    }
                 }
-                if (this@StatisticsPage.topBluetooth.isEmpty()) MdcBodyText("No Bluetooth data", MdcTheme.Colors.onSurfaceVariant)
+                vif({ this@StatisticsPage.totalBluetooth == 0L }) {
+                    MdcBodyText("No Bluetooth data", MdcTheme.Colors.onSurfaceVariant)
+                }
             }
 
             MdcNavigationDrawerHost(
@@ -103,8 +115,16 @@ class StatisticsPage : Pager() {
                 totalWifi = wifiDao.getCount()
                 totalBluetooth = bluetoothDao.getCount()
                 totalLocations = locationDao.getCount()
-                topWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
-                topBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
+                val latestTopWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
+                val latestTopBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
+                if (topWifi != latestTopWifi) {
+                    topWifi.clear()
+                    topWifi.addAll(latestTopWifi)
+                }
+                if (topBluetooth != latestTopBluetooth) {
+                    topBluetooth.clear()
+                    topBluetooth.addAll(latestTopBluetooth)
+                }
             }.onFailure { it.printStackTrace() }
         }
     }

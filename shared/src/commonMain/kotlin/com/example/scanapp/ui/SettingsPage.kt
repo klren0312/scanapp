@@ -10,6 +10,7 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
@@ -33,7 +34,6 @@ class SettingsPage : Pager() {
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
-        val root = this
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
@@ -52,9 +52,9 @@ class SettingsPage : Pager() {
 
                 MdcSectionHeader("Storage")
                 MdcCardRow {
-                    MdcStatBadge("WiFi", "${this@SettingsPage.totalWifi}", MdcTheme.Colors.wifi)
-                    MdcStatBadge("Bluetooth", "${this@SettingsPage.totalBluetooth}", MdcTheme.Colors.bluetooth)
-                    MdcStatBadge("Locations", "${this@SettingsPage.totalLocations}", MdcTheme.Colors.warning)
+                    MdcStatBadge("WiFi", { "${this@SettingsPage.totalWifi}" }, MdcTheme.Colors.wifi)
+                    MdcStatBadge("Bluetooth", { "${this@SettingsPage.totalBluetooth}" }, MdcTheme.Colors.bluetooth)
+                    MdcStatBadge("Locations", { "${this@SettingsPage.totalLocations}" }, MdcTheme.Colors.warning)
                 }
 
                 MdcSectionHeader("Data Export")
@@ -68,8 +68,8 @@ class SettingsPage : Pager() {
                     MdcFilledButton("Export JSON") { this@SettingsPage.exportData("json") }
                 }
 
-                if (this@SettingsPage.exportResult.isNotEmpty()) {
-                    MdcBodyText(this@SettingsPage.exportResult, MdcTheme.Colors.secondary)
+                vif({ this@SettingsPage.exportResult.isNotEmpty() }) {
+                    MdcBodyText({ this@SettingsPage.exportResult }, MdcTheme.Colors.secondary)
                 }
 
                 MdcSectionHeader("Data Management")

@@ -31,7 +31,7 @@ internal fun ViewContainer<*, *>.MdcTitle(text: String) {
 }
 
 internal fun ViewContainer<*, *>.MdcTopBar(
-    title: String,
+    title: () -> String,
     onBack: () -> Unit
 ) {
     View {
@@ -64,7 +64,7 @@ internal fun ViewContainer<*, *>.MdcTopBar(
         }
         Text {
             attr {
-                text(title)
+                text(title())
                 flex(1f)
                 fontSize(MdcTheme.Typography.headlineMedium)
                 fontWeightBold()
@@ -209,7 +209,7 @@ private fun ViewContainer<*, *>.MdcDrawerItem(
 
 internal fun ViewContainer<*, *>.MdcRecordColumn(
     title: String,
-    body: String,
+    body: () -> String,
     accentColor: Color,
     rightMargin: Boolean = false
 ) {
@@ -236,7 +236,7 @@ internal fun ViewContainer<*, *>.MdcRecordColumn(
         }
         Text {
             attr {
-                text(body)
+                text(body())
                 fontSize(MdcTheme.Typography.bodySmall)
                 color(MdcTheme.Colors.onSurface)
                 lineHeight(18f)
@@ -302,6 +302,17 @@ internal fun ViewContainer<*, *>.MdcBodyText(text: String, color: Color = MdcThe
     Text {
         attr {
             this.text(text)
+            fontSize(MdcTheme.Typography.bodyLarge)
+            this.color(color)
+            marginTop(MdcTheme.Spacing.sm)
+        }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcBodyText(text: () -> String, color: Color = MdcTheme.Colors.onSurface) {
+    Text {
+        attr {
+            this.text(text())
             fontSize(MdcTheme.Typography.bodyLarge)
             this.color(color)
             marginTop(MdcTheme.Spacing.sm)
@@ -588,7 +599,7 @@ internal fun ViewContainer<*, *>.MdcTab(
 
 internal fun ViewContainer<*, *>.MdcStatBadge(
     label: String,
-    value: String,
+    value: () -> String,
     color: Color
 ) {
     View {
@@ -598,7 +609,7 @@ internal fun ViewContainer<*, *>.MdcStatBadge(
         }
         Text {
             attr {
-                text(value)
+                text(value())
                 fontSize(MdcTheme.Typography.titleLarge)
                 fontWeightBold()
                 color(color)

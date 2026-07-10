@@ -8,11 +8,14 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.directives.vforIndex
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -20,7 +23,7 @@ import com.tencent.kuikly.core.views.View
 @Page("Map")
 class MapPage : Pager() {
 
-    private var locationRecords by observable(emptyList<LocationRecord>())
+    private var locationRecords by observableList<LocationRecord>()
     private var totalCount by observable(0L)
     private var drawerOpen by observable(false)
 
@@ -36,7 +39,6 @@ class MapPage : Pager() {
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
-        val root = this
         View {
             attr {
                 size(pagerData.pageViewWidth, pagerData.pageViewHeight)
@@ -46,17 +48,18 @@ class MapPage : Pager() {
             }
 
             MdcMenuTopBar("Locations") { this@MapPage.drawerOpen = true }
-            MdcBodyText("Total records: ${this@MapPage.totalCount}", MdcTheme.Colors.onSurfaceVariant)
+            MdcBodyText({ "Total records: ${this@MapPage.totalCount}" }, MdcTheme.Colors.onSurfaceVariant)
 
             Scroller {
                 attr {
                     flex(1f)
                     marginTop(MdcTheme.Spacing.sm)
                 }
-                this@MapPage.locationRecords.forEachIndexed { index, record ->
-                    this@MapPage.run { root.MdcLocationCard(index, record) }
+                vforIndex({ this@MapPage.locationRecords }) { record, index, _ ->
+                    val itemContainer = this
+                    this@MapPage.run { itemContainer.MdcLocationCard(index, record) }
                 }
-                if (this@MapPage.locationRecords.isEmpty()) {
+                vif({ this@MapPage.totalCount == 0L }) {
                     MdcBodyText("No location records", MdcTheme.Colors.onSurfaceVariant)
                 }
             }
@@ -98,7 +101,11 @@ class MapPage : Pager() {
             runCatching {
                 val dao = LocationDao(DatabaseFactory.getDatabase())
                 totalCount = dao.getCount()
-                locationRecords = dao.getAllRecords()
+                val latestRecords = dao.getAllRecords()
+                if (locationRecords != latestRecords) {
+                    locationRecords.clear()
+                    locationRecords.addAll(latestRecords)
+                }
             }.onFailure { it.printStackTrace() }
         }
     }

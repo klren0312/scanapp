@@ -48,8 +48,8 @@ class ScannerPage : Pager() {
             MdcMenuTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.drawerOpen = true }
 
             MdcCardRow {
-                MdcStatBadge("WiFi Networks", "${this@ScannerPage.wifiCount}", MdcTheme.Colors.wifi)
-                MdcStatBadge("Bluetooth", "${this@ScannerPage.bluetoothCount}", MdcTheme.Colors.bluetooth)
+                MdcStatBadge("WiFi Networks", { "${this@ScannerPage.wifiCount}" }, MdcTheme.Colors.wifi)
+                MdcStatBadge("Bluetooth", { "${this@ScannerPage.bluetoothCount}" }, MdcTheme.Colors.bluetooth)
             }
 
             View {
@@ -110,8 +110,8 @@ class ScannerPage : Pager() {
                     attr {
                         flexDirection(FlexDirection.ROW)
                     }
-                    MdcRecordColumn("WiFi", this@ScannerPage.recentWifiText, MdcTheme.Colors.wifi, rightMargin = true)
-                    MdcRecordColumn("Bluetooth", this@ScannerPage.recentBluetoothText, MdcTheme.Colors.bluetooth)
+                    MdcRecordColumn("WiFi", { this@ScannerPage.recentWifiText }, MdcTheme.Colors.wifi, rightMargin = true)
+                    MdcRecordColumn("Bluetooth", { this@ScannerPage.recentBluetoothText }, MdcTheme.Colors.bluetooth)
                 }
             }
 
@@ -135,13 +135,14 @@ class ScannerPage : Pager() {
         val result = PlatformScanController.startBackgroundScanning()
         scanStatus = result.message
         if (!result.success) {
+            isScanning = false
             return
         }
         refreshData()
         lifecycleScope.launch {
             while (isScanning) {
                 refreshData()
-                delay(3000)
+                delay(1000)
             }
         }
     }
