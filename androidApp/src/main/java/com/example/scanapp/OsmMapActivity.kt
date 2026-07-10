@@ -1,6 +1,11 @@
 package com.example.scanapp
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -9,17 +14,22 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.DatabaseFactory
-import com.example.scanapp.database.LocationDao
-import com.example.scanapp.models.LocationRecord
+import com.example.scanapp.database.WifiScanDao
+import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.WifiScanRecord
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -30,6 +40,10 @@ class OsmMapActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
     private lateinit var statusView: TextView
     private lateinit var drawerOverlay: FrameLayout
+    private var pollingJob: Job? = null
+
+    private val wifiColor = 0xFF1565C0.toInt()
+    private val bluetoothColor = 0xFF6A1B9A.toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +66,7 @@ class OsmMapActivity : AppCompatActivity() {
             setBackgroundColor(0x99000000.toInt())
             textSize = 14f
             setPadding(24, 12, 24, 12)
-            text = "Loading locations..."
+            text = "Loading devices..."
         }
 
         val root = FrameLayout(this).apply {
@@ -94,20 +108,23 @@ class OsmMapActivity : AppCompatActivity() {
         }
         setContentView(root)
 
-        loadLocations()
+        startPolling()
     }
 
     override fun onResume() {
         super.onResume()
         mapView.onResume()
+        startPolling()
     }
 
     override fun onPause() {
         mapView.onPause()
+        stopPolling()
         super.onPause()
     }
 
     override fun onDestroy() {
+        stopPolling()
         scope.cancel()
         super.onDestroy()
     }
@@ -115,6 +132,128 @@ class OsmMapActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+
+    private fun startPolling() {
+        if (pollingJob?.isActive == true) return
+        pollingJob = scope.launch {
+            loadDevices()
+            while (true) {
+                delay(3000)
+                loadDevices()
+            }
+        }
+    }
+
+    private fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
+    private fun loadDevices() {
+        scope.launch {
+            runCatching {
+                val db = withContext(Dispatchers.IO) { DatabaseFactory.getDatabase() }
+                val wifi = withContext(Dispatchers.IO) { WifiScanDao(db).getAllRecords() }
+                val bluetooth = withContext(Dispatchers.IO) { BluetoothScanDao(db).getAllRecords() }
+                wifi to bluetooth
+            }.onSuccess { (wifi, bluetooth) ->
+                renderDevices(wifi, bluetooth)
+            }.onFailure { error ->
+                statusView.text = "Failed to load devices: ${error.message ?: "unknown error"}"
+            }
+        }
+    }
+
+    private fun renderDevices(wifi: List<WifiScanRecord>, bluetooth: List<BluetoothScanRecord>) {
+        val validWifi = wifi.filter { hasValidLocation(it.latitude, it.longitude) }
+        val validBluetooth = bluetooth.filter { hasValidLocation(it.latitude, it.longitude) }
+
+        mapView.overlays.clear()
+
+        validWifi.forEach { record ->
+            mapView.overlays.add(
+                makeMarker(
+                    record.latitude,
+                    record.longitude,
+                    record.ssid.ifEmpty { "Unknown" },
+                    "${record.signalStrength} dBm\n${record.bssid}",
+                    wifiColor
+                )
+            )
+        }
+
+        validBluetooth.forEach { record ->
+            mapView.overlays.add(
+                makeMarker(
+                    record.latitude,
+                    record.longitude,
+                    record.name.ifEmpty { "Unknown" },
+                    "${record.rssi} dBm\n${record.address}",
+                    bluetoothColor
+                )
+            )
+        }
+
+        val points = validWifi.map { GeoPoint(it.latitude, it.longitude) } +
+            validBluetooth.map { GeoPoint(it.latitude, it.longitude) }
+
+        if (points.isNotEmpty()) {
+            if (points.size == 1) {
+                mapView.controller.setZoom(16.0)
+                mapView.controller.setCenter(points.first())
+            } else {
+                mapView.zoomToBoundingBox(BoundingBox.fromGeoPoints(points), true)
+            }
+            statusView.text = "WiFi: ${validWifi.size}  Bluetooth: ${validBluetooth.size}"
+        } else {
+            mapView.controller.setZoom(3.0)
+            mapView.controller.setCenter(GeoPoint(0.0, 0.0))
+            statusView.text = "No device records with location"
+        }
+
+        mapView.invalidate()
+    }
+
+    private fun makeMarker(
+        latitude: Double,
+        longitude: Double,
+        title: String,
+        snippet: String,
+        color: Int
+    ): Marker {
+        return Marker(mapView).apply {
+            position = GeoPoint(latitude, longitude)
+            this.title = title
+            this.snippet = snippet
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            icon = makeMarkerIcon(color)
+        }
+    }
+
+    private fun makeMarkerIcon(color: Int): Drawable {
+        val size = dp(24)
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val radius = (size / 2f) - dp(2)
+        val fill = Paint().apply {
+            isAntiAlias = true
+            this.color = color
+        }
+        val border = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeWidth = dp(2).toFloat()
+            this.color = Color.WHITE
+        }
+        canvas.drawCircle(size / 2f, size / 2f, radius, fill)
+        canvas.drawCircle(size / 2f, size / 2f, radius, border)
+        return BitmapDrawable(resources, bitmap)
+    }
+
+    private fun hasValidLocation(latitude: Double, longitude: Double): Boolean {
+        if (latitude == 0.0 && longitude == 0.0) return false
+        return latitude in -90.0..90.0 && longitude in -180.0..180.0
     }
 
     private fun createMenuButton(): TextView {
@@ -187,55 +326,6 @@ class OsmMapActivity : AppCompatActivity() {
         if (pageName == "Map") return
         KuiklyRenderActivity.start(this, pageName)
         finish()
-    }
-
-    private fun loadLocations() {
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    LocationDao(DatabaseFactory.getDatabase()).getAllRecords()
-                }
-            }.onSuccess { records ->
-                renderLocations(records)
-            }.onFailure { error ->
-                statusView.text = "Failed to load locations: ${error.message ?: "unknown error"}"
-            }
-        }
-    }
-
-    private fun renderLocations(records: List<LocationRecord>) {
-        val validRecords = records.filter { it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0 }
-
-        validRecords.forEachIndexed { index, record ->
-            mapView.overlays.add(
-                Marker(mapView).apply {
-                    position = GeoPoint(record.latitude, record.longitude)
-                    title = "Location #${index + 1}"
-                    snippet = "Accuracy: ${formatOneDecimal(record.accuracy.toDouble())} m"
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                }
-            )
-        }
-
-        if (validRecords.isNotEmpty()) {
-            val latest = validRecords.last()
-            mapView.controller.setZoom(16.0)
-            mapView.controller.setCenter(GeoPoint(latest.latitude, latest.longitude))
-            statusView.text = "OpenStreetMap locations: ${validRecords.size}"
-        } else {
-            mapView.controller.setZoom(3.0)
-            mapView.controller.setCenter(GeoPoint(0.0, 0.0))
-            statusView.text = "No location records"
-        }
-
-        mapView.invalidate()
-    }
-
-    private fun formatOneDecimal(value: Double): String {
-        val tenths = kotlin.math.round(value * 10.0).toLong()
-        val sign = if (tenths < 0) "-" else ""
-        val absolute = kotlin.math.abs(tenths)
-        return "$sign${absolute / 10}.${absolute % 10}"
     }
 
     private fun dp(value: Int): Int {
