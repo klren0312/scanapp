@@ -6,6 +6,7 @@ import com.example.scanapp.models.LocationRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -19,13 +20,19 @@ import com.tencent.kuikly.core.views.View
 @Page("Map")
 class MapPage : Pager() {
 
-    private var locationRecords: List<LocationRecord> = emptyList()
+    private var locationRecords by observable(emptyList<LocationRecord>())
     private var totalCount by observable(0L)
     private var drawerOpen by observable(false)
 
     override fun created() {
         super.created()
-        loadData()
+        refreshData()
+        lifecycleScope.launch {
+            while (true) {
+                delay(3000)
+                refreshData()
+            }
+        }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -86,7 +93,7 @@ class MapPage : Pager() {
         }
     }
 
-    private fun loadData() {
+    private fun refreshData() {
         lifecycleScope.launch {
             runCatching {
                 val dao = LocationDao(DatabaseFactory.getDatabase())

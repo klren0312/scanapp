@@ -7,6 +7,7 @@ import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.module.RouterModule
@@ -24,12 +25,18 @@ class DeviceListPage : Pager() {
     private var wifiSeenTotal by observable(0)
     private var bluetoothSeenTotal by observable(0)
     private var drawerOpen by observable(false)
-    private var wifiRecords: List<WifiScanRecord> = emptyList()
-    private var bluetoothRecords: List<BluetoothScanRecord> = emptyList()
+    private var wifiRecords by observable(emptyList<WifiScanRecord>())
+    private var bluetoothRecords by observable(emptyList<BluetoothScanRecord>())
 
     override fun created() {
         super.created()
-        loadData()
+        refreshData()
+        lifecycleScope.launch {
+            while (true) {
+                delay(3000)
+                refreshData()
+            }
+        }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -122,7 +129,7 @@ class DeviceListPage : Pager() {
         }
     }
 
-    private fun loadData() {
+    private fun refreshData() {
         lifecycleScope.launch {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
