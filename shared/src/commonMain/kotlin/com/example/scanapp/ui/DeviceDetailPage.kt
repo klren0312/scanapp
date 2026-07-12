@@ -34,10 +34,16 @@ class DeviceDetailPage : Pager() {
     private var mapCoordinateText by observable("Loading coordinates...")
     private var mapMetaText by observable("Loading map data...")
     private var nearbyText by observable("Loading nearby locations...")
+    private var isPageActive = true
 
     override fun created() {
         super.created()
         loadDevice()
+    }
+
+    override fun pageWillDestroy() {
+        isPageActive = false
+        super.pageWillDestroy()
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -194,14 +200,16 @@ class DeviceDetailPage : Pager() {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val locations = LocationDao(db).getAllRecords()
+                if (!isPageActive) return@runCatching
                 if (deviceType == "wifi") {
                     val record = WifiScanDao(db).getRecordByBssid(deviceKey)
-                    renderWifi(record, locations)
+                    if (isPageActive) renderWifi(record, locations)
                 } else {
                     val record = BluetoothScanDao(db).getRecordByAddress(deviceKey)
-                    renderBluetooth(record, locations)
+                    if (isPageActive) renderBluetooth(record, locations)
                 }
             }.onFailure {
+                if (!isPageActive) return@onFailure
                 detailText = "Failed to load device: ${it.message}"
                 locationText = "No location data"
                 mapCoordinateText = "No coordinates"
@@ -261,7 +269,13 @@ class DeviceDetailPage : Pager() {
     }
 
     private fun buildLocationText(latitude: Double, longitude: Double, locations: List<LocationRecord>): String {
-        val nearby = locations.sortedBy {
+        if (latitude.isNaN() || latitude.isInfinite() || longitude.isNaN() || longitude.isInfinite()) {
+            return "Invalid coordinates"
+        }
+        val nearby = locations.filter {
+            !it.latitude.isNaN() && !it.latitude.isInfinite() &&
+            !it.longitude.isNaN() && !it.longitude.isInfinite()
+        }.sortedBy {
             abs(it.latitude - latitude) + abs(it.longitude - longitude)
         }.take(3)
         val base = mutableListOf(
@@ -284,7 +298,16 @@ class DeviceDetailPage : Pager() {
     }
 
     private fun updateMapPreview(latitude: Double, longitude: Double, timestamp: Long, locations: List<LocationRecord>) {
-        val nearby = locations.sortedBy {
+        if (latitude.isNaN() || latitude.isInfinite() || longitude.isNaN() || longitude.isInfinite()) {
+            mapCoordinateText = "Invalid coordinates"
+            mapMetaText = "Last scan timestamp: $timestamp"
+            nearbyText = "No valid location data"
+            return
+        }
+        val nearby = locations.filter {
+            !it.latitude.isNaN() && !it.latitude.isInfinite() &&
+            !it.longitude.isNaN() && !it.longitude.isInfinite()
+        }.sortedBy {
             abs(it.latitude - latitude) + abs(it.longitude - longitude)
         }.take(3)
         mapCoordinateText = "${formatCoordinate(latitude)}, ${formatCoordinate(longitude)}"
@@ -304,6 +327,7 @@ class DeviceDetailPage : Pager() {
     }
 
     private fun formatCoordinate(value: Double): String {
+        if (value.isNaN() || value.isInfinite()) return "N/A"
         val millionths = kotlin.math.round(value * 1_000_000.0).toLong()
         val sign = if (millionths < 0) "-" else ""
         val absolute = kotlin.math.abs(millionths)
@@ -313,6 +337,7 @@ class DeviceDetailPage : Pager() {
     }
 
     private fun formatOneDecimal(value: Double): String {
+        if (value.isNaN() || value.isInfinite()) return "N/A"
         val tenths = kotlin.math.round(value * 10.0).toLong()
         val sign = if (tenths < 0) "-" else ""
         val absolute = kotlin.math.abs(tenths)
