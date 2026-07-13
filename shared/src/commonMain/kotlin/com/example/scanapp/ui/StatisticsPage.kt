@@ -9,7 +9,6 @@ import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.delay
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.directives.vif
@@ -30,16 +29,20 @@ class StatisticsPage : Pager() {
     private var drawerOpen by observable(false)
     private var topWifi by observableList<WifiScanRecord>()
     private var topBluetooth by observableList<BluetoothScanRecord>()
+    private var isPageActive = true
 
     override fun created() {
         super.created()
-        refreshData()
-        lifecycleScope.launch {
-            while (true) {
-                delay(3000)
-                refreshData()
-            }
-        }
+        lifecycleScope.launch { refreshData() }
+    }
+
+    override fun pageWillDestroy() {
+        isPageActive = false
+        super.pageWillDestroy()
+    }
+
+    private fun refresh() {
+        lifecycleScope.launch { refreshData() }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -58,6 +61,8 @@ class StatisticsPage : Pager() {
                 MdcStatBadge("Bluetooth", { "${this@StatisticsPage.totalBluetooth}" }, MdcTheme.Colors.bluetooth)
                 MdcStatBadge("Locations", { "${this@StatisticsPage.totalLocations}" }, MdcTheme.Colors.warning)
             }
+
+            MdcOutlinedButton("Refresh") { this@StatisticsPage.refresh() }
 
             Scroller {
                 attr {
@@ -104,29 +109,25 @@ class StatisticsPage : Pager() {
         )
     }
 
-    private fun refreshData() {
-        lifecycleScope.launch {
-            runCatching {
-                val db = DatabaseFactory.getDatabase()
-                val wifiDao = WifiScanDao(db)
-                val bluetoothDao = BluetoothScanDao(db)
-                val locationDao = LocationDao(db)
+    private suspend fun refreshData() {
+        if (!isPageActive) return
+        runCatching {
+            val db = DatabaseFactory.getDatabase()
+            val wifiDao = WifiScanDao(db)
+            val bluetoothDao = BluetoothScanDao(db)
+            val locationDao = LocationDao(db)
 
-                totalWifi = wifiDao.getCount()
-                totalBluetooth = bluetoothDao.getCount()
-                totalLocations = locationDao.getCount()
-                val latestTopWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
-                val latestTopBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
-                if (topWifi != latestTopWifi) {
-                    topWifi.clear()
-                    topWifi.addAll(latestTopWifi)
-                }
-                if (topBluetooth != latestTopBluetooth) {
-                    topBluetooth.clear()
-                    topBluetooth.addAll(latestTopBluetooth)
-                }
-            }.onFailure { it.printStackTrace() }
-        }
+            totalWifi = wifiDao.getCount()
+            totalBluetooth = bluetoothDao.getCount()
+            totalLocations = locationDao.getCount()
+            val latestTopWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
+            val latestTopBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
+            if (!isPageActive) return
+            topWifi.clear()
+            topWifi.addAll(latestTopWifi)
+            topBluetooth.clear()
+            topBluetooth.addAll(latestTopBluetooth)
+        }.onFailure { it.printStackTrace() }
     }
 
     private fun navigateTo(pageName: String) {

@@ -567,15 +567,15 @@ internal fun ViewContainer<*, *>.MdcDivider() {
 
 internal fun ViewContainer<*, *>.MdcTab(
     label: String,
-    selected: Boolean,
+    selected: () -> Boolean,
     onClick: () -> Unit
 ) {
     View {
         attr {
             padding(top = MdcTheme.Spacing.sm, bottom = MdcTheme.Spacing.sm, left = MdcTheme.Spacing.md + 4f, right = MdcTheme.Spacing.md + 4f)
-            backgroundColor(if (selected) MdcTheme.Colors.primaryContainer else Color.TRANSPARENT)
+            backgroundColor(if (selected()) MdcTheme.Colors.primaryContainer else Color.TRANSPARENT)
             borderRadius(20f)
-            marginLeft(if (selected) 0f else MdcTheme.Spacing.xs)
+            marginLeft(if (selected()) 0f else MdcTheme.Spacing.xs)
             alignItems(FlexAlign.CENTER)
             justifyContent(FlexJustifyContent.CENTER)
         }
@@ -587,7 +587,7 @@ internal fun ViewContainer<*, *>.MdcTab(
                 text(label)
                 fontSize(MdcTheme.Typography.labelLarge)
                 fontWeightSemiBold()
-                color(if (selected) MdcTheme.Colors.onPrimaryContainer else MdcTheme.Colors.onSurfaceVariant)
+                color(if (selected()) MdcTheme.Colors.onPrimaryContainer else MdcTheme.Colors.onSurfaceVariant)
             }
         }
     }

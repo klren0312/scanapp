@@ -30,10 +30,17 @@ class ScannerPage : Pager() {
     private var recentWifiText by observable("No WiFi records")
     private var recentBluetoothText by observable("No Bluetooth records")
     private var drawerOpen by observable(false)
+    private var isPageActive = true
 
     override fun created() {
         super.created()
         refreshData()
+    }
+
+    override fun pageWillDestroy() {
+        isPageActive = false
+        isScanning = false
+        super.pageWillDestroy()
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -140,7 +147,7 @@ class ScannerPage : Pager() {
         }
         refreshData()
         lifecycleScope.launch {
-            while (isScanning) {
+            while (isScanning && isPageActive) {
                 refreshData()
                 delay(1000)
             }
@@ -156,10 +163,12 @@ class ScannerPage : Pager() {
 
     private fun refreshData() {
         lifecycleScope.launch {
+            if (!isPageActive) return@launch
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val wifiDao = WifiScanDao(db)
                 val bluetoothDao = BluetoothScanDao(db)
+                if (!isPageActive) return@launch
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
                 recentWifiText = formatWifiRecords(wifiDao.getRecordsPaginated(limit = 10, offset = 0))
