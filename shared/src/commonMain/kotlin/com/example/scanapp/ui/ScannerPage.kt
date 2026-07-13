@@ -3,13 +3,12 @@ package com.example.scanapp.ui
 import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.service.PlatformScanController
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.delay
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -146,10 +145,10 @@ class ScannerPage : Pager() {
             return
         }
         refreshData()
-        lifecycleScope.launch {
+        safeLaunch("Scanner.loop") {
             while (isScanning && isPageActive) {
                 refreshData()
-                delay(1000)
+                kotlinx.coroutines.delay(1000L)
             }
         }
     }
@@ -162,18 +161,18 @@ class ScannerPage : Pager() {
     }
 
     private fun refreshData() {
-        lifecycleScope.launch {
-            if (!isPageActive) return@launch
+        safeLaunch("Scanner.refreshData") {
+            if (!isPageActive) return@safeLaunch
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val wifiDao = WifiScanDao(db)
                 val bluetoothDao = BluetoothScanDao(db)
-                if (!isPageActive) return@launch
+                if (!isPageActive) return@safeLaunch
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
                 recentWifiText = formatWifiRecords(wifiDao.getRecordsPaginated(limit = 10, offset = 0))
                 recentBluetoothText = formatBluetoothRecords(bluetoothDao.getRecordsPaginated(limit = 10, offset = 0))
-            }.onFailure { it.printStackTrace() }
+            }.onFailure { CrashLogger.log("Scanner.refreshData", it) }
         }
     }
 

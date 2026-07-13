@@ -151,6 +151,7 @@ internal fun ViewContainer<*, *>.MdcNavigationDrawer(
             MdcDrawerItem("Devices", "DeviceList", currentPage, onNavigate)
             MdcDrawerItem("Statistics", "Statistics", currentPage, onNavigate)
             MdcDrawerItem("Map", "Map", currentPage, onNavigate)
+            MdcDrawerItem("Logs", "Logs", currentPage, onNavigate)
             MdcDrawerItem("Settings", "Settings", currentPage, onNavigate)
         }
         View {

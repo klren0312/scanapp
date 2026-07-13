@@ -2,11 +2,11 @@ package com.example.scanapp.ui
 
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.LocationRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
@@ -29,7 +29,7 @@ class MapPage : Pager() {
 
     override fun created() {
         super.created()
-        lifecycleScope.launch { refreshData() }
+        safeLaunch("Map.created") { refreshData() }
     }
 
     override fun pageWillDestroy() {
@@ -38,7 +38,7 @@ class MapPage : Pager() {
     }
 
     private fun refresh() {
-        lifecycleScope.launch { refreshData() }
+        safeLaunch("Map.refresh") { refreshData() }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -110,7 +110,7 @@ class MapPage : Pager() {
             if (!isPageActive) return
             locationRecords.clear()
             locationRecords.addAll(latestRecords)
-        }.onFailure { it.printStackTrace() }
+        }.onFailure { CrashLogger.log("Map.refreshData", it) }
     }
 
     private fun formatOneDecimal(value: Double): String {

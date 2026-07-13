@@ -73,6 +73,26 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         database.databaseQueries.countWifiRecords().executeAsOne()
     }
 
+    suspend fun getSeenTotal(): Long = withContext(Dispatchers.Default) {
+        database.databaseQueries.sumWifiCount().executeAsOne().IFNULL ?: 0L
+    }
+
+    suspend fun getRecordsPaginatedOrderedBySignal(limit: Int, offset: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+        database.databaseQueries.selectWifiRecordsPaginatedBySignal(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
+            WifiScanRecord(
+                id = it.id,
+                ssid = it.ssid,
+                bssid = it.bssid,
+                signalStrength = it.signalStrength.toInt(),
+                frequency = it.frequency.toInt(),
+                timestamp = it.timestamp,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                count = it.count.toInt()
+            )
+        }
+    }
+
     suspend fun getRecordsBySignalStrength(minSignalStrength: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
         database.databaseQueries.selectWifiRecordsBySignalStrength(minSignalStrength.toLong()).executeAsList().map {
             WifiScanRecord(

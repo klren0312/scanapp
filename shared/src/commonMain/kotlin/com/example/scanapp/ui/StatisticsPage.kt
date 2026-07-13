@@ -4,12 +4,12 @@ import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
@@ -33,7 +33,7 @@ class StatisticsPage : Pager() {
 
     override fun created() {
         super.created()
-        lifecycleScope.launch { refreshData() }
+        safeLaunch("Statistics.created") { refreshData() }
     }
 
     override fun pageWillDestroy() {
@@ -42,7 +42,7 @@ class StatisticsPage : Pager() {
     }
 
     private fun refresh() {
-        lifecycleScope.launch { refreshData() }
+        safeLaunch("Statistics.refresh") { refreshData() }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -127,7 +127,7 @@ class StatisticsPage : Pager() {
             topWifi.addAll(latestTopWifi)
             topBluetooth.clear()
             topBluetooth.addAll(latestTopBluetooth)
-        }.onFailure { it.printStackTrace() }
+        }.onFailure { CrashLogger.log("Statistics.refreshData", it) }
     }
 
     private fun navigateTo(pageName: String) {

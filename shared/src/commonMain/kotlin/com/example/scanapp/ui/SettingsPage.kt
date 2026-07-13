@@ -4,12 +4,12 @@ import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.service.ExportServiceImpl
 import com.example.scanapp.service.PlatformExportController
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -90,7 +90,7 @@ class SettingsPage : Pager() {
     }
 
     private fun exportData(format: String) {
-        lifecycleScope.launch {
+        safeLaunch("Settings.export") {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val wifiRecords = WifiScanDao(db).getAllRecords()
@@ -114,13 +114,13 @@ class SettingsPage : Pager() {
                 }
             }.onFailure {
                 exportResult = "Export failed: ${it.message}"
-                it.printStackTrace()
+                CrashLogger.log("Settings.export", it)
             }
         }
     }
 
     private fun clearAllData() {
-        lifecycleScope.launch {
+        safeLaunch("Settings.clear") {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 WifiScanDao(db).deleteAll()
@@ -132,19 +132,19 @@ class SettingsPage : Pager() {
                 exportResult = "All data cleared"
             }.onFailure {
                 exportResult = "Clear failed: ${it.message}"
-                it.printStackTrace()
+                CrashLogger.log("Settings.clear", it)
             }
         }
     }
 
     private fun loadSummary() {
-        lifecycleScope.launch {
+        safeLaunch("Settings.loadSummary") {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 totalWifi = WifiScanDao(db).getCount()
                 totalBluetooth = BluetoothScanDao(db).getCount()
                 totalLocations = LocationDao(db).getCount()
-            }.onFailure { it.printStackTrace() }
+            }.onFailure { CrashLogger.log("Settings.loadSummary", it) }
         }
     }
 

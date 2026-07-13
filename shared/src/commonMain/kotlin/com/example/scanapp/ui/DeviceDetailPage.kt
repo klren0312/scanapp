@@ -4,6 +4,7 @@ import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
@@ -12,7 +13,6 @@ import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -196,7 +196,7 @@ class DeviceDetailPage : Pager() {
     private fun loadDevice() {
         val deviceType = pagerData.params.optString("deviceType")
         val deviceKey = pagerData.params.optString("deviceKey")
-        lifecycleScope.launch {
+        safeLaunch("DeviceDetail.loadDevice") {
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val locations = LocationDao(db).getAllRecords()
@@ -215,7 +215,7 @@ class DeviceDetailPage : Pager() {
                 mapCoordinateText = "No coordinates"
                 mapMetaText = "Map data unavailable"
                 nearbyText = "No nearby locations"
-                it.printStackTrace()
+                CrashLogger.log("DeviceDetail.loadDevice", it)
             }
         }
     }

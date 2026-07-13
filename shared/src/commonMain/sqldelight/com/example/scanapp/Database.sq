@@ -1,4 +1,4 @@
-CREATE TABLE WifiScanRecord (
+﻿CREATE TABLE WifiScanRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ssid TEXT NOT NULL,
     bssid TEXT NOT NULL UNIQUE,
@@ -123,3 +123,16 @@ SELECT * FROM BluetoothScanRecord WHERE deviceType = ? ORDER BY timestamp DESC;
 
 selectWifiRecordsByFrequency:
 SELECT * FROM WifiScanRecord WHERE frequency = ? ORDER BY timestamp DESC;
+
+
+selectWifiRecordsPaginatedBySignal:
+SELECT * FROM WifiScanRecord ORDER BY signalStrength DESC LIMIT :limit OFFSET :offset;
+
+selectBluetoothRecordsPaginatedByRssi:
+SELECT * FROM BluetoothScanRecord ORDER BY rssi DESC LIMIT :limit OFFSET :offset;
+
+sumWifiCount:
+SELECT IFNULL(SUM(count), 0) FROM WifiScanRecord;
+
+sumBluetoothCount:
+SELECT IFNULL(SUM(count), 0) FROM BluetoothScanRecord;

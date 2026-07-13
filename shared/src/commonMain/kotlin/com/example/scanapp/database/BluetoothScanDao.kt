@@ -73,6 +73,26 @@ class BluetoothScanDao(private val database: ScanAppDatabase) {
         database.databaseQueries.countBluetoothRecords().executeAsOne()
     }
 
+    suspend fun getSeenTotal(): Long = withContext(Dispatchers.Default) {
+        database.databaseQueries.sumBluetoothCount().executeAsOne().IFNULL ?: 0L
+    }
+
+    suspend fun getRecordsPaginatedOrderedByRssi(limit: Int, offset: Int): List<BluetoothScanRecord> = withContext(Dispatchers.Default) {
+        database.databaseQueries.selectBluetoothRecordsPaginatedByRssi(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
+            BluetoothScanRecord(
+                id = it.id,
+                name = it.name,
+                address = it.address,
+                rssi = it.rssi.toInt(),
+                deviceType = it.deviceType,
+                timestamp = it.timestamp,
+                latitude = it.latitude,
+                longitude = it.longitude,
+                count = it.count.toInt()
+            )
+        }
+    }
+
     suspend fun getRecordsByDeviceType(deviceType: String): List<BluetoothScanRecord> = withContext(Dispatchers.Default) {
         database.databaseQueries.selectBluetoothRecordsByType(deviceType).executeAsList().map {
             BluetoothScanRecord(

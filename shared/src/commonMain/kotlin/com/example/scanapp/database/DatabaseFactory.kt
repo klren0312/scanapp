@@ -6,9 +6,10 @@ object DatabaseFactory {
     private var instance: ScanAppDatabase? = null
 
     fun getDatabase(): ScanAppDatabase {
-        return instance ?: synchronized(this) {
-            instance ?: createDatabase().also { instance = it }
-        }
+        instance?.let { return it }
+        val db = createDatabase()
+        instance = db
+        return db
     }
 
     private fun createDatabase(): ScanAppDatabase {
