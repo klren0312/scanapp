@@ -41,6 +41,7 @@ class OsmMapActivity : AppCompatActivity() {
     private lateinit var statusView: TextView
     private lateinit var drawerOverlay: FrameLayout
     private var pollingJob: Job? = null
+    private var showingSinglePoint = false
 
     private val wifiColor = 0xFF1565C0.toInt()
     private val bluetoothColor = 0xFF6A1B9A.toInt()
@@ -48,6 +49,10 @@ class OsmMapActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "Map"
+
+        val targetLat = intent.getDoubleExtra(EXTRA_LAT, Double.NaN)
+        val targetLon = intent.getDoubleExtra(EXTRA_LON, Double.NaN)
+        val targetTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty()
 
         Configuration.getInstance().apply {
             userAgentValue = packageName
@@ -108,13 +113,35 @@ class OsmMapActivity : AppCompatActivity() {
         }
         setContentView(root)
 
-        startPolling()
+        if (!targetLat.isNaN() && !targetLon.isNaN()) {
+            showSinglePoint(targetLat, targetLon, targetTitle)
+        } else {
+            startPolling()
+        }
+    }
+
+    private fun showSinglePoint(latitude: Double, longitude: Double, title: String) {
+        showingSinglePoint = true
+        mapView.overlays.clear()
+        mapView.overlays.add(
+            makeMarker(
+                latitude,
+                longitude,
+                title.ifEmpty { "Device" },
+                "$latitude, $longitude",
+                bluetoothColor
+            )
+        )
+        mapView.controller.setZoom(16.0)
+        mapView.controller.setCenter(GeoPoint(latitude, longitude))
+        mapView.invalidate()
+        statusView.text = if (title.isNotEmpty()) "查看设备: $title" else "Device location"
     }
 
     override fun onResume() {
         super.onResume()
         mapView.onResume()
-        startPolling()
+        if (!showingSinglePoint) startPolling()
     }
 
     override fun onPause() {
@@ -330,5 +357,11 @@ class OsmMapActivity : AppCompatActivity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    companion object {
+        const val EXTRA_LAT = "extra_lat"
+        const val EXTRA_LON = "extra_lon"
+        const val EXTRA_TITLE = "extra_title"
     }
 }

@@ -253,15 +253,29 @@ internal fun ViewContainer<*, *>.MdcDeviceCard(
     secondaryMetric: String,
     count: Int,
     color: Color,
+    tag: String = "",
+    tagColor: Color = MdcTheme.Colors.secondary,
     onClick: () -> Unit
 ) {
     MdcCard(onClick = onClick) {
-        Text {
+        View {
             attr {
-                text(title)
-                fontSize(MdcTheme.Typography.bodyLarge)
-                fontWeightSemiBold()
-                color(MdcTheme.Colors.onSurface)
+                flexDirection(FlexDirection.ROW)
+                alignItems(FlexAlign.CENTER)
+                justifyContent(FlexJustifyContent.SPACE_BETWEEN)
+            }
+            Text {
+                attr {
+                    text(title)
+                    fontSize(MdcTheme.Typography.bodyLarge)
+                    fontWeightSemiBold()
+                    color(MdcTheme.Colors.onSurface)
+                    flex(1f)
+                    marginRight(MdcTheme.Spacing.sm)
+                }
+            }
+            if (tag.isNotEmpty()) {
+                MdcTag(tag, tagColor)
             }
         }
         Text {
@@ -283,6 +297,27 @@ internal fun ViewContainer<*, *>.MdcDeviceCard(
             MdcCaption(secondaryMetric)
         }
         MdcCaption("Seen $count times", MdcTheme.Colors.secondary)
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcTag(
+    text: String,
+    color: Color
+) {
+    View {
+        attr {
+            padding(left = 8f, right = 8f, top = 3f, bottom = 3f)
+            backgroundColor(MdcTheme.Colors.surfaceVariant)
+            borderRadius(10f)
+        }
+        Text {
+            attr {
+                text(text)
+                fontSize(MdcTheme.Typography.labelSmall)
+                fontWeightMedium()
+                color(color)
+            }
+        }
     }
 }
 

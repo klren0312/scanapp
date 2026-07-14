@@ -9,17 +9,15 @@ import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.Border
-import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
-import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -34,6 +32,8 @@ class DeviceDetailPage : Pager() {
     private var mapCoordinateText by observable("Loading coordinates...")
     private var mapMetaText by observable("Loading map data...")
     private var nearbyText by observable("Loading nearby locations...")
+    private var currentLat by observable(0.0)
+    private var currentLon by observable(0.0)
     private var isPageActive = true
 
     override fun created() {
@@ -76,9 +76,8 @@ class DeviceDetailPage : Pager() {
 
                 MdcSectionHeader("Map")
                 this@DeviceDetailPage.run {
-                    scroller.MdcInlineMapPreview(
+                    scroller.MdcRealMapCard(
                         coordinate = { this@DeviceDetailPage.mapCoordinateText },
-                        meta = { this@DeviceDetailPage.mapMetaText },
                         nearby = { this@DeviceDetailPage.nearbyText }
                     )
                 }
@@ -117,7 +116,7 @@ class DeviceDetailPage : Pager() {
         }
     }
 
-    private fun ViewContainer<*, *>.MdcInlineMapPreview(coordinate: () -> String, meta: () -> String, nearby: () -> String) {
+    private fun ViewContainer<*, *>.MdcRealMapCard(coordinate: () -> String, nearby: () -> String) {
         MdcCard(elevation = MdcTheme.Elevation.level1) {
             Text {
                 attr {
@@ -129,55 +128,30 @@ class DeviceDetailPage : Pager() {
             }
             Text {
                 attr {
-                    text(meta())
+                    text("真实地图（OpenStreetMap）")
                     fontSize(MdcTheme.Typography.bodySmall)
                     color(MdcTheme.Colors.onSurfaceVariant)
                     marginTop(2f)
                 }
             }
-            View {
-                attr {
-                    height(190f)
-                    marginTop(MdcTheme.Spacing.sm)
-                    borderRadius(12f)
-                    overflow(true)
-                    backgroundColor(Color(0xffE8F5E9L))
-                    border(Border(1f, BorderStyle.SOLID, Color(0xffC8E6C9L)))
-                    alignItems(FlexAlign.CENTER)
-                    justifyContent(FlexJustifyContent.CENTER)
-                }
-                View {
+            if (this@DeviceDetailPage.hasValidLocation()) {
+                Image {
                     attr {
-                        positionType(FlexPositionType.ABSOLUTE)
-                        absolutePosition(top = 52f, left = 0f, right = 0f)
-                        height(16f)
-                        backgroundColor(Color(0xffB0BEC5L))
+                        src(this@DeviceDetailPage.buildStaticMapUrl(this@DeviceDetailPage.currentLat, this@DeviceDetailPage.currentLon))
+                        width(pagerData.pageViewWidth - 56f)
+                        height(200f)
+                        borderRadius(12f)
+                        overflow(true)
+                        marginTop(MdcTheme.Spacing.sm)
                     }
                 }
-                View {
+            } else {
+                Text {
                     attr {
-                        positionType(FlexPositionType.ABSOLUTE)
-                        absolutePosition(top = 122f, left = 0f, right = 0f)
-                        height(10f)
-                        backgroundColor(Color(0xffCFD8DCL))
-                    }
-                }
-                View {
-                    attr {
-                        positionType(FlexPositionType.ABSOLUTE)
-                        absolutePosition(top = 0f, left = 88f, bottom = 0f)
-                        width(12f)
-                        backgroundColor(Color(0xffB0BEC5L))
-                    }
-                }
-                View {
-                    attr {
-                        width(22f)
-                        height(22f)
-                        borderRadius(11f)
-                        backgroundColor(MdcTheme.Colors.error)
-                        border(Border(3f, BorderStyle.SOLID, Color.WHITE))
-                        boxShadow(MdcTheme.Elevation.level2)
+                        text("无有效坐标，无法显示地图")
+                        fontSize(MdcTheme.Typography.bodySmall)
+                        color(MdcTheme.Colors.onSurfaceVariant)
+                        marginTop(MdcTheme.Spacing.sm)
                     }
                 }
             }
@@ -191,6 +165,18 @@ class DeviceDetailPage : Pager() {
                 }
             }
         }
+    }
+
+    private fun hasValidLocation(): Boolean {
+        if (currentLat.isNaN() || currentLat.isInfinite()) return false
+        if (currentLon.isNaN() || currentLon.isInfinite()) return false
+        return !(currentLat == 0.0 && currentLon == 0.0)
+    }
+
+    private fun buildStaticMapUrl(lat: Double, lon: Double): String {
+        val center = "$lat,$lon"
+        return "https://staticmap.openstreetmap.de/staticmap.php" +
+            "?center=$center&zoom=15&size=600x300&maptype=mapnik&markers=$center,red"
     }
 
     private fun loadDevice() {
@@ -242,6 +228,8 @@ class DeviceDetailPage : Pager() {
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
         updateMapPreview(record.latitude, record.longitude, record.timestamp, locations)
+        currentLat = record.latitude
+        currentLon = record.longitude
     }
 
     private fun renderBluetooth(record: BluetoothScanRecord?, locations: List<LocationRecord>) {
@@ -266,6 +254,8 @@ class DeviceDetailPage : Pager() {
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
         updateMapPreview(record.latitude, record.longitude, record.timestamp, locations)
+        currentLat = record.latitude
+        currentLon = record.longitude
     }
 
     private fun buildLocationText(latitude: Double, longitude: Double, locations: List<LocationRecord>): String {

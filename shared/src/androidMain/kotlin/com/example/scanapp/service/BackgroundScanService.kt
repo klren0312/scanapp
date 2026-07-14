@@ -68,18 +68,26 @@ class BackgroundScanService : Service() {
     }
 
     private fun startScanning() {
-        bluetoothScanner.startScan { record ->
-            scope.launch {
-                val location = locationTracker.getCurrentLocation()
-                val recordWithLocation = record.copy(
-                    latitude = location?.latitude ?: 0.0,
-                    longitude = location?.longitude ?: 0.0
-                )
-                val database = DatabaseFactory.getDatabase()
-                val bluetoothDao = BluetoothScanDao(database)
-                bluetoothDao.insertBatch(listOf(recordWithLocation))
-            }
+        if (!bluetoothScanner.isBluetoothEnabled()) {
+            android.util.Log.e("BackgroundScanService", "Bluetooth is disabled. Bluetooth scanning will not run until it is enabled.")
         }
+        bluetoothScanner.startScan(
+            callback = { record ->
+                scope.launch {
+                    val location = locationTracker.getCurrentLocation()
+                    val recordWithLocation = record.copy(
+                        latitude = location?.latitude ?: 0.0,
+                        longitude = location?.longitude ?: 0.0
+                    )
+                    val database = DatabaseFactory.getDatabase()
+                    val bluetoothDao = BluetoothScanDao(database)
+                    bluetoothDao.insertBatch(listOf(recordWithLocation))
+                }
+            },
+            onError = { error ->
+                android.util.Log.e("BackgroundScanService", "Bluetooth scan error: $error")
+            }
+        )
 
         scanningJob = scope.launch {
             while (isActive) {

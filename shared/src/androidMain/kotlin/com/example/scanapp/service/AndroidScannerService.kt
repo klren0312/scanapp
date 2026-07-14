@@ -57,17 +57,27 @@ class AndroidScannerService(
     }
 
     override suspend fun startBluetoothScan() {
-        bluetoothScanner.startScan { record ->
-            scope.launch {
-                val location = locationService.getCurrentLocation()
-                val recordWithLocation = record.copy(
-                    latitude = location?.latitude ?: 0.0,
-                    longitude = location?.longitude ?: 0.0
-                )
-                bluetoothDao.insertBatch(listOf(recordWithLocation))
-                _bluetoothDevices.value = bluetoothDao.getAllRecords()
-            }
+        if (!bluetoothScanner.isBluetoothEnabled()) {
+            // 蓝牙未开启，记录错误
+            return
         }
+        bluetoothScanner.startScan(
+            callback = { record ->
+                scope.launch {
+                    val location = locationService.getCurrentLocation()
+                    val recordWithLocation = record.copy(
+                        latitude = location?.latitude ?: 0.0,
+                        longitude = location?.longitude ?: 0.0
+                    )
+                    bluetoothDao.insertBatch(listOf(recordWithLocation))
+                    _bluetoothDevices.value = bluetoothDao.getAllRecords()
+                }
+            },
+            onError = { error ->
+                // 蓝牙扫描失败，可在此上报
+                android.util.Log.e("AndroidScannerService", error)
+            }
+        )
     }
 
     override suspend fun stopBluetoothScan() {
@@ -78,17 +88,22 @@ class AndroidScannerService(
         _isScanning.value = true
 
         // 启动蓝牙扫描（持续监听）
-        bluetoothScanner.startScan { record ->
-            scope.launch {
-                val location = locationService.getCurrentLocation()
-                val recordWithLocation = record.copy(
-                    latitude = location?.latitude ?: 0.0,
-                    longitude = location?.longitude ?: 0.0
-                )
-                bluetoothDao.insertBatch(listOf(recordWithLocation))
-                _bluetoothDevices.value = bluetoothDao.getAllRecords()
+        bluetoothScanner.startScan(
+            callback = { record ->
+                scope.launch {
+                    val location = locationService.getCurrentLocation()
+                    val recordWithLocation = record.copy(
+                        latitude = location?.latitude ?: 0.0,
+                        longitude = location?.longitude ?: 0.0
+                    )
+                    bluetoothDao.insertBatch(listOf(recordWithLocation))
+                    _bluetoothDevices.value = bluetoothDao.getAllRecords()
+                }
+            },
+            onError = { error ->
+                android.util.Log.e("AndroidScannerService", error)
             }
-        }
+        )
 
         scanJob = scope.launch {
             while (true) {
