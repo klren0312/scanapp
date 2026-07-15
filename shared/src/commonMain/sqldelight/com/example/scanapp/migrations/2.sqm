@@ -1,4 +1,4 @@
-CREATE TABLE CellScanRecord (
+CREATE TABLE IF NOT EXISTS CellScanRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cellKey TEXT NOT NULL UNIQUE,
     networkType TEXT NOT NULL,
@@ -14,6 +14,6 @@ CREATE TABLE CellScanRecord (
     count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX idx_cell_timestamp ON CellScanRecord(timestamp);
-CREATE INDEX idx_cell_networkType ON CellScanRecord(networkType);
-CREATE INDEX idx_cell_cellKey ON CellScanRecord(cellKey);
+CREATE INDEX IF NOT EXISTS idx_cell_timestamp ON CellScanRecord(timestamp);
+CREATE INDEX IF NOT EXISTS idx_cell_networkType ON CellScanRecord(networkType);
+CREATE INDEX IF NOT EXISTS idx_cell_cellKey ON CellScanRecord(cellKey);

@@ -1,4 +1,4 @@
-CREATE TABLE WifiScanRecord (
+CREATE TABLE IF NOT EXISTS WifiScanRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ssid TEXT NOT NULL,
     bssid TEXT NOT NULL UNIQUE,
@@ -10,10 +10,10 @@ CREATE TABLE WifiScanRecord (
     count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX idx_wifi_timestamp ON WifiScanRecord(timestamp);
-CREATE INDEX idx_wifi_ssid ON WifiScanRecord(ssid);
+CREATE INDEX IF NOT EXISTS idx_wifi_timestamp ON WifiScanRecord(timestamp);
+CREATE INDEX IF NOT EXISTS idx_wifi_ssid ON WifiScanRecord(ssid);
 
-CREATE TABLE BluetoothScanRecord (
+CREATE TABLE IF NOT EXISTS BluetoothScanRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     address TEXT NOT NULL UNIQUE,
@@ -25,10 +25,10 @@ CREATE TABLE BluetoothScanRecord (
     count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX idx_bluetooth_timestamp ON BluetoothScanRecord(timestamp);
-CREATE INDEX idx_bluetooth_deviceType ON BluetoothScanRecord(deviceType);
+CREATE INDEX IF NOT EXISTS idx_bluetooth_timestamp ON BluetoothScanRecord(timestamp);
+CREATE INDEX IF NOT EXISTS idx_bluetooth_deviceType ON BluetoothScanRecord(deviceType);
 
-CREATE TABLE LocationRecord (
+CREATE TABLE IF NOT EXISTS LocationRecord (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
@@ -37,4 +37,4 @@ CREATE TABLE LocationRecord (
     timestamp INTEGER NOT NULL
 );
 
-CREATE INDEX idx_location_timestamp ON LocationRecord(timestamp);
+CREATE INDEX IF NOT EXISTS idx_location_timestamp ON LocationRecord(timestamp);
