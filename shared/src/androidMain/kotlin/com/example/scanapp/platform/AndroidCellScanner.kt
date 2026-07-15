@@ -1,6 +1,8 @@
 package com.example.scanapp.platform
 
+import android.annotation.TargetApi
 import android.content.Context
+import android.os.Build
 import android.telephony.CellInfo
 import android.telephony.CellInfoCdma
 import android.telephony.CellInfoGsm
@@ -30,52 +32,64 @@ class AndroidCellScanner(private val context: Context) {
     // 归一化：未知值（<=0 或平台哨兵 Integer.MAX_VALUE）统一记为 -1，最终被 toRecord 过滤丢弃
     private fun norm(v: Int): Int = if (v <= 0 || v == Int.MAX_VALUE) -1 else v
 
-    private fun identity(info: CellInfo): CellIdentityData? = when (info) {
-        is CellInfoLte -> {
-            val id = info.cellIdentity as? android.telephony.CellIdentityLte ?: return null
-            CellIdentityData(
-                "LTE",
-                norm(id.mccString?.toIntOrNull() ?: id.mcc ?: -1),
-                norm(id.mncString?.toIntOrNull() ?: id.mnc ?: -1),
-                norm(id.tac ?: -1).toLong(),
-                norm(id.ci ?: -1).toLong()
-            )
+    private fun identity(info: CellInfo): CellIdentityData? {
+        // CellInfoNr / CellIdentityNr only exist on API 29+. Reference them only through a
+        // string check + a @TargetApi(Q) helper so the class is never loaded on older devices
+        // (a direct `is CellInfoNr` would throw NoClassDefFoundError at runtime on API < 29).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            info.javaClass.name == "android.telephony.CellInfoNr"
+        ) {
+            return identityNr(info)
         }
-        is CellInfoWcdma -> {
-            val id = info.cellIdentity as? android.telephony.CellIdentityWcdma ?: return null
-            CellIdentityData(
-                "WCDMA",
-                norm(id.mccString?.toIntOrNull() ?: id.mcc ?: -1),
-                norm(id.mncString?.toIntOrNull() ?: id.mnc ?: -1),
-                norm(id.lac ?: -1).toLong(),
-                norm(id.cid ?: -1).toLong()
-            )
+        return when (info) {
+            is CellInfoLte -> {
+                val id = info.cellIdentity as? android.telephony.CellIdentityLte ?: return null
+                CellIdentityData(
+                    "LTE",
+                    norm(id.mcc ?: -1),
+                    norm(id.mnc ?: -1),
+                    norm(id.tac ?: -1).toLong(),
+                    norm(id.ci ?: -1).toLong()
+                )
+            }
+            is CellInfoWcdma -> {
+                val id = info.cellIdentity as? android.telephony.CellIdentityWcdma ?: return null
+                CellIdentityData(
+                    "WCDMA",
+                    norm(id.mcc ?: -1),
+                    norm(id.mnc ?: -1),
+                    norm(id.lac ?: -1).toLong(),
+                    norm(id.cid ?: -1).toLong()
+                )
+            }
+            is CellInfoGsm -> {
+                val id = info.cellIdentity as? android.telephony.CellIdentityGsm ?: return null
+                CellIdentityData(
+                    "GSM",
+                    norm(id.mcc ?: -1),
+                    norm(id.mnc ?: -1),
+                    norm(id.lac ?: -1).toLong(),
+                    norm(id.cid ?: -1).toLong()
+                )
+            }
+            is CellInfoCdma -> {
+                val id = info.cellIdentity as? android.telephony.CellIdentityCdma ?: return null
+                CellIdentityData("CDMA", -1, -1, norm(id.networkId).toLong(), norm(id.systemId).toLong())
+            }
+            else -> null
         }
-        is CellInfoGsm -> {
-            val id = info.cellIdentity as? android.telephony.CellIdentityGsm ?: return null
-            CellIdentityData(
-                "GSM",
-                norm(id.mccString?.toIntOrNull() ?: id.mcc ?: -1),
-                norm(id.mncString?.toIntOrNull() ?: id.mnc ?: -1),
-                norm(id.lac ?: -1).toLong(),
-                norm(id.cid ?: -1).toLong()
-            )
-        }
-        is CellInfoCdma -> {
-            val id = info.cellIdentity as? android.telephony.CellIdentityCdma ?: return null
-            CellIdentityData("CDMA", -1, -1, norm(id.networkId).toLong(), norm(id.systemId).toLong())
-        }
-        is CellInfoNr -> {
-            val id = info.cellIdentity as? android.telephony.CellIdentityNr ?: return null
-            CellIdentityData(
-                "NR",
-                norm(id.mccString?.toIntOrNull() ?: -1),
-                norm(id.mncString?.toIntOrNull() ?: -1),
-                norm(id.nrarfcn).toLong(),
-                norm(id.pci).toLong()
-            )
-        }
-        else -> null
+    }
+
+    @TargetApi(Build.VERSION_CODES.Q)
+    private fun identityNr(info: CellInfo): CellIdentityData? {
+        val id = (info as? CellInfoNr)?.cellIdentity as? android.telephony.CellIdentityNr ?: return null
+        return CellIdentityData(
+            "NR",
+            norm(id.mcc ?: -1),
+            norm(id.mnc ?: -1),
+            norm(id.nrarfcn).toLong(),
+            norm(id.pci).toLong()
+        )
     }
 
     private fun signalDbm(info: CellInfo): Int {
