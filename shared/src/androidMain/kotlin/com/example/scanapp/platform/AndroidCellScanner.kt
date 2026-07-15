@@ -85,8 +85,8 @@ class AndroidCellScanner(private val context: Context) {
         val id = (info as? CellInfoNr)?.cellIdentity as? android.telephony.CellIdentityNr ?: return null
         return CellIdentityData(
             "NR",
-            norm(id.mcc ?: -1),
-            norm(id.mnc ?: -1),
+            norm(id.mccString?.toIntOrNull() ?: -1),
+            norm(id.mncString?.toIntOrNull() ?: -1),
             norm(id.nrarfcn).toLong(),
             norm(id.pci).toLong()
         )
