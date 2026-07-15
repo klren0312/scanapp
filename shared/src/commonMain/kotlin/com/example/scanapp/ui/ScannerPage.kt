@@ -1,10 +1,12 @@
 package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.service.PlatformScanController
 import com.example.scanapp.util.diffUpdate
@@ -43,6 +45,7 @@ class ScannerPage : Pager() {
     private var scanStatus by observable("")
     private var wifiCount by observable(0L)
     private var bluetoothCount by observable(0L)
+    private var cellCount by observable(0L)
     private var mergedDevices by observableList<MergedDevice>()
     private var drawerOpen by observable(false)
     private var isPageActive = true
@@ -70,8 +73,9 @@ class ScannerPage : Pager() {
             MdcMenuTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.drawerOpen = true }
 
             MdcCardRow {
-                MdcStatBadge("WiFi Networks", { "${this@ScannerPage.wifiCount}" }, MdcTheme.Colors.wifi)
+                MdcStatBadge("WiFi", { "${this@ScannerPage.wifiCount}" }, MdcTheme.Colors.wifi)
                 MdcStatBadge("Bluetooth", { "${this@ScannerPage.bluetoothCount}" }, MdcTheme.Colors.bluetooth)
+                MdcStatBadge("Cell", { "${this@ScannerPage.cellCount}" }, MdcTheme.Colors.cell)
             }
 
             View {
@@ -205,20 +209,24 @@ class ScannerPage : Pager() {
                 val db = DatabaseFactory.getDatabase()
                 val wifiDao = WifiScanDao(db)
                 val bluetoothDao = BluetoothScanDao(db)
+                val cellDao = CellScanDao(db)
                 if (!isPageActive) return@safeLaunch
                 val wifiRecords = wifiDao.getRecordsPaginated(limit = 20, offset = 0)
                 val bluetoothRecords = bluetoothDao.getRecordsPaginated(limit = 20, offset = 0)
+                val cellRecords = cellDao.getRecordsPaginatedOrderedBySignal(limit = 20, offset = 0)
                 if (!isPageActive) return@safeLaunch
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
-                this@ScannerPage.mergedDevices.diffUpdate(buildMergedDevices(wifiRecords, bluetoothRecords))
+                cellCount = cellDao.getCount()
+                this@ScannerPage.mergedDevices.diffUpdate(buildMergedDevices(wifiRecords, bluetoothRecords, cellRecords))
             }.onFailure { CrashLogger.log("Scanner.refreshData", it) }
         }
     }
 
     private fun buildMergedDevices(
         wifi: List<WifiScanRecord>,
-        bluetooth: List<BluetoothScanRecord>
+        bluetooth: List<BluetoothScanRecord>,
+        cell: List<CellScanRecord>
     ): List<MergedDevice> {
         val list = mutableListOf<MergedDevice>()
         wifi.forEach {
@@ -248,6 +256,21 @@ class ScannerPage : Pager() {
                     timestamp = it.timestamp,
                     tag = "Bluetooth",
                     tagColor = MdcTheme.Colors.bluetooth
+                )
+            )
+        }
+        cell.forEach {
+            list.add(
+                MergedDevice(
+                    type = "cell",
+                    title = if (it.operator.isNotEmpty() && it.operator != "Unknown") it.operator else "${it.networkType} Cell",
+                    identity = it.cellKey,
+                    primaryMetric = "${it.signalStrength} dBm",
+                    secondaryMetric = it.networkType,
+                    count = it.count,
+                    timestamp = it.timestamp,
+                    tag = "Cell",
+                    tagColor = MdcTheme.Colors.cell
                 )
             )
         }
