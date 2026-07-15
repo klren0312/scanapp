@@ -1,16 +1,19 @@
 package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -134,7 +137,7 @@ class DeviceDetailPage : Pager() {
                     marginTop(2f)
                 }
             }
-            if (this@DeviceDetailPage.hasValidLocation()) {
+            vif({ this@DeviceDetailPage.hasValidLocation() }) {
                 Image {
                     attr {
                         src(this@DeviceDetailPage.buildStaticMapUrl(this@DeviceDetailPage.currentLat, this@DeviceDetailPage.currentLon))
@@ -145,7 +148,8 @@ class DeviceDetailPage : Pager() {
                         marginTop(MdcTheme.Spacing.sm)
                     }
                 }
-            } else {
+            }
+            vif({ !this@DeviceDetailPage.hasValidLocation() }) {
                 Text {
                     attr {
                         text("无有效坐标，无法显示地图")
@@ -173,6 +177,28 @@ class DeviceDetailPage : Pager() {
         return !(currentLat == 0.0 && currentLon == 0.0)
     }
 
+    // Prefer the device record's own coordinates; if they are missing/invalid, fall back
+    // to the nearest stored location sample so the map can still be shown.
+    private fun resolveLocation(
+        recordLat: Double,
+        recordLon: Double,
+        locations: List<LocationRecord>
+    ): Pair<Double, Double> {
+        val recordValid = !(recordLat.isNaN() || recordLat.isInfinite() ||
+            recordLon.isNaN() || recordLon.isInfinite() ||
+            (recordLat == 0.0 && recordLon == 0.0))
+        if (recordValid) return recordLat to recordLon
+
+        val nearest = locations
+            .filter {
+                !it.latitude.isNaN() && !it.latitude.isInfinite() &&
+                    !it.longitude.isNaN() && !it.longitude.isInfinite() &&
+                    !(it.latitude == 0.0 && it.longitude == 0.0)
+            }
+            .minByOrNull { abs(it.latitude - recordLat) + abs(it.longitude - recordLon) }
+        return if (nearest != null) nearest.latitude to nearest.longitude else 0.0 to 0.0
+    }
+
     private fun buildStaticMapUrl(lat: Double, lon: Double): String {
         val center = "$lat,$lon"
         return "https://staticmap.openstreetmap.de/staticmap.php" +
@@ -190,6 +216,9 @@ class DeviceDetailPage : Pager() {
                 if (deviceType == "wifi") {
                     val record = WifiScanDao(db).getRecordByBssid(deviceKey)
                     if (isPageActive) renderWifi(record, locations)
+                } else if (deviceType == "cell") {
+                    val record = CellScanDao(db).getRecordByCellKey(deviceKey)
+                    if (isPageActive) renderCell(record, locations)
                 } else {
                     val record = BluetoothScanDao(db).getRecordByAddress(deviceKey)
                     if (isPageActive) renderBluetooth(record, locations)
@@ -227,9 +256,10 @@ class DeviceDetailPage : Pager() {
             "Last timestamp: ${record.timestamp}"
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
-        updateMapPreview(record.latitude, record.longitude, record.timestamp, locations)
-        currentLat = record.latitude
-        currentLon = record.longitude
+        val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
+        updateMapPreview(effLat, effLon, record.timestamp, locations)
+        currentLat = effLat
+        currentLon = effLon
     }
 
     private fun renderBluetooth(record: BluetoothScanRecord?, locations: List<LocationRecord>) {
@@ -253,9 +283,40 @@ class DeviceDetailPage : Pager() {
             "Last timestamp: ${record.timestamp}"
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
-        updateMapPreview(record.latitude, record.longitude, record.timestamp, locations)
-        currentLat = record.latitude
-        currentLon = record.longitude
+        val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
+        updateMapPreview(effLat, effLon, record.timestamp, locations)
+        currentLat = effLat
+        currentLon = effLon
+    }
+
+    private fun renderCell(record: CellScanRecord?, locations: List<LocationRecord>) {
+        if (record == null) {
+            title = "Cell Detail"
+            detailText = "Device not found"
+            locationText = "No location data"
+            mapCoordinateText = "No coordinates"
+            mapMetaText = "Device not found"
+            nearbyText = "No nearby locations"
+            return
+        }
+        title = if (record.operator.isNotEmpty() && record.operator != "Unknown") record.operator else "Cell Detail"
+        detailText = listOf(
+            "Type: Cell",
+            "Network: ${record.networkType}",
+            "Operator: ${record.operator.ifEmpty { "Unknown" }}",
+            "MCC: ${record.mcc}",
+            "MNC: ${record.mnc}",
+            "LAC/TAC: ${record.lac}",
+            "CID/CI: ${record.cid}",
+            "Signal: ${record.signalStrength} dBm",
+            "Seen: ${record.count} times",
+            "Last timestamp: ${record.timestamp}"
+        ).joinToString("\n")
+        locationText = buildLocationText(record.latitude, record.longitude, locations)
+        val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
+        updateMapPreview(effLat, effLon, record.timestamp, locations)
+        currentLat = effLat
+        currentLon = effLon
     }
 
     private fun buildLocationText(latitude: Double, longitude: Double, locations: List<LocationRecord>): String {
