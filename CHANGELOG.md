@@ -10,6 +10,8 @@
 
 - Fixed stale data on pages that were opened before a scan ran: `StatisticsPage`, `ScannerPage`, `DeviceListPage`, and `SettingsPage` now reload their data in `pageDidAppear()` (Kuikly `Pager` lifecycle), so returning to a page after a background/worker scan refreshes the counts and lists instead of showing the old values from `created()`.
 
+- Fixed runtime `no such table: CellScanRecord` on already-installed databases. SQLDelight only created the new table in fresh DBs; existing DBs stayed at schema version 1. Added SQLDelight migrations `migrations/1.sqm` (original Wifi/Bluetooth/Location schema) and `migrations/2.sqm` (adds `CellScanRecord` + its indexes) so installed databases are upgraded on launch instead of crashing on the cell count query.
+
 ## 2026-07-13
 
 - Removed the native Android title bar (ActionBar showing "ScanApp") by switching the application theme from `Theme.AppCompat.Light.DarkActionBar` to `Theme.AppCompat.Light.NoActionBar` in `AndroidManifest.xml`. Kuikly UI top bars are unchanged.
