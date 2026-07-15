@@ -49,11 +49,11 @@ class CellScanDao(private val database: ScanAppDatabase) {
         database.databaseQueries.deleteAllCellRecords()
     }
 
-    private fun com.example.scanapp.db.CellScanRecord.toModel() = CellScanRecord(
+    private fun com.example.scanapp.CellScanRecord.toModel() = CellScanRecord(
         id = id,
         cellKey = cellKey,
         networkType = networkType,
-        operator = operator,
+        operator = operator_,
         mcc = mcc.toInt(),
         mnc = mnc.toInt(),
         lac = lac,
@@ -71,7 +71,7 @@ class CellScanDao(private val database: ScanAppDatabase) {
             database.databaseQueries.insertCellRecord(
                 cellKey = record.cellKey,
                 networkType = record.networkType,
-                operator = record.operator,
+                operator_ = record.operator,
                 mcc = record.mcc.toLong(),
                 mnc = record.mnc.toLong(),
                 lac = record.lac,
@@ -90,7 +90,7 @@ class CellScanDao(private val database: ScanAppDatabase) {
                 (record.latitude == 0.0 && record.longitude == 0.0)
             database.databaseQueries.updateCellRecord(
                 networkType = record.networkType,
-                operator = record.operator,
+                operator_ = record.operator,
                 signalStrength = record.signalStrength.toLong(),
                 timestamp = record.timestamp,
                 latitude = if (invalid) existing.latitude else record.latitude,
