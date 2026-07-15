@@ -1,10 +1,12 @@
 package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
@@ -38,8 +40,10 @@ class DeviceListPage : Pager() {
 
     private var wifiDeviceCount by observable(0)
     private var bluetoothDeviceCount by observable(0)
+    private var cellDeviceCount by observable(0)
     private var wifiSeenTotal by observable(0)
     private var bluetoothSeenTotal by observable(0)
+    private var cellSeenTotal by observable(0)
     private var deviceFilter by observable("all")
     private var drawerOpen by observable(false)
     private var isLoadingMore by observable(false)
@@ -50,8 +54,10 @@ class DeviceListPage : Pager() {
     private val loadedItems = mutableListOf<DeviceItem>()
     private var loadedWifiCount = 0
     private var loadedBluetoothCount = 0
+    private var loadedCellCount = 0
     private var wifiTotal = 0
     private var bluetoothTotal = 0
+    private var cellTotal = 0
 
     override fun created() {
         super.created()
@@ -79,11 +85,13 @@ class DeviceListPage : Pager() {
                 MdcCardRow {
                     MdcStatBadge("WiFi Devices", { safeValue("DeviceList.stat") { "${this@DeviceListPage.wifiDeviceCount}" } }, MdcTheme.Colors.wifi)
                     MdcStatBadge("Bluetooth Devices", { safeValue("DeviceList.stat") { "${this@DeviceListPage.bluetoothDeviceCount}" } }, MdcTheme.Colors.bluetooth)
+                    MdcStatBadge("Cell Devices", { safeValue("DeviceList.stat") { "${this@DeviceListPage.cellDeviceCount}" } }, MdcTheme.Colors.cell)
                 }
 
                 MdcCardRow(elevation = MdcTheme.Elevation.level0) {
                     MdcStatBadge("WiFi Seen", { safeValue("DeviceList.stat") { "${this@DeviceListPage.wifiSeenTotal}" } }, MdcTheme.Colors.wifi)
                     MdcStatBadge("Bluetooth Seen", { safeValue("DeviceList.stat") { "${this@DeviceListPage.bluetoothSeenTotal}" } }, MdcTheme.Colors.bluetooth)
+                    MdcStatBadge("Cell Seen", { safeValue("DeviceList.stat") { "${this@DeviceListPage.cellSeenTotal}" } }, MdcTheme.Colors.cell)
                 }
 
                 View {
@@ -94,6 +102,7 @@ class DeviceListPage : Pager() {
                     MdcTab("All", { safeBool("DeviceList.tab") { this@DeviceListPage.deviceFilter == "all" } }) { this@DeviceListPage.setFilter("all") }
                     MdcTab("WiFi", { safeBool("DeviceList.tab") { this@DeviceListPage.deviceFilter == "wifi" } }) { this@DeviceListPage.setFilter("wifi") }
                     MdcTab("Bluetooth", { safeBool("DeviceList.tab") { this@DeviceListPage.deviceFilter == "bluetooth" } }) { this@DeviceListPage.setFilter("bluetooth") }
+                    MdcTab("Cell", { safeBool("DeviceList.tab") { this@DeviceListPage.deviceFilter == "cell" } }) { this@DeviceListPage.setFilter("cell") }
                 }
 
                 MdcOutlinedButton("Refresh") { this@DeviceListPage.refresh() }
@@ -119,7 +128,11 @@ class DeviceListPage : Pager() {
                                 primaryMetric = item.primaryMetric,
                                 secondaryMetric = item.secondaryMetric,
                                 count = item.count,
-                                color = if (item.type == "wifi") MdcTheme.Colors.wifi else MdcTheme.Colors.bluetooth
+                                color = when (item.type) {
+                                    "wifi" -> MdcTheme.Colors.wifi
+                                    "cell" -> MdcTheme.Colors.cell
+                                    else -> MdcTheme.Colors.bluetooth
+                                }
                             ) {
                                 this@DeviceListPage.openDeviceDetail(item.type, item.key)
                             }
@@ -158,29 +171,36 @@ class DeviceListPage : Pager() {
         safeLaunch(tag) { block(token) }
     }
 
-    private fun hasMore(): Boolean = loadedWifiCount < wifiTotal || loadedBluetoothCount < bluetoothTotal
+    private fun hasMore(): Boolean = loadedWifiCount < wifiTotal || loadedBluetoothCount < bluetoothTotal || loadedCellCount < cellTotal
 
     private suspend fun loadInitial(token: Int) {
         if (!isPageActive) return
         val db = DatabaseFactory.getDatabase()
         val wifiDao = WifiScanDao(db)
         val bluetoothDao = BluetoothScanDao(db)
+        val cellDao = CellScanDao(db)
 
         wifiTotal = wifiDao.getCount().toInt()
         bluetoothTotal = bluetoothDao.getCount().toInt()
+        cellTotal = cellDao.getCount().toInt()
         wifiDeviceCount = wifiTotal
         bluetoothDeviceCount = bluetoothTotal
+        cellDeviceCount = cellTotal
         wifiSeenTotal = wifiDao.getSeenTotal().toInt()
         bluetoothSeenTotal = bluetoothDao.getSeenTotal().toInt()
+        cellSeenTotal = cellDao.getSeenTotal().toInt()
 
         val wifiPage = wifiDao.getRecordsPaginatedOrderedBySignal(pageSize, 0)
         val bluetoothPage = bluetoothDao.getRecordsPaginatedOrderedByRssi(pageSize, 0)
+        val cellPage = cellDao.getRecordsPaginatedOrderedBySignal(pageSize, 0)
         loadedWifiCount = wifiPage.size
         loadedBluetoothCount = bluetoothPage.size
+        loadedCellCount = cellPage.size
 
         loadedItems.clear()
         loadedItems.addAll(wifiPage.map { it.toDeviceItem() })
         loadedItems.addAll(bluetoothPage.map { it.toDeviceItem() })
+        loadedItems.addAll(cellPage.map { it.toDeviceItem() })
 
         if (!isPageActive || token != loadToken) return
         rebuildDisplay()
@@ -193,6 +213,7 @@ class DeviceListPage : Pager() {
             val db = DatabaseFactory.getDatabase()
             val wifiDao = WifiScanDao(db)
             val bluetoothDao = BluetoothScanDao(db)
+            val cellDao = CellScanDao(db)
 
             val wifiPage = if (loadedWifiCount < wifiTotal) {
                 wifiDao.getRecordsPaginatedOrderedBySignal(pageSize, loadedWifiCount)
@@ -204,11 +225,18 @@ class DeviceListPage : Pager() {
             } else {
                 emptyList()
             }
+            val cellPage = if (loadedCellCount < cellTotal) {
+                cellDao.getRecordsPaginatedOrderedBySignal(pageSize, loadedCellCount)
+            } else {
+                emptyList()
+            }
 
             loadedWifiCount += wifiPage.size
             loadedBluetoothCount += bluetoothPage.size
+            loadedCellCount += cellPage.size
             loadedItems.addAll(wifiPage.map { it.toDeviceItem() })
             loadedItems.addAll(bluetoothPage.map { it.toDeviceItem() })
+            loadedItems.addAll(cellPage.map { it.toDeviceItem() })
 
             if (!isPageActive || token != loadToken) return
             rebuildDisplay()
@@ -251,6 +279,17 @@ class DeviceListPage : Pager() {
         count = count,
         key = address,
         displaySignal = rssi
+    )
+
+    private fun CellScanRecord.toDeviceItem() = DeviceItem(
+        type = "cell",
+        title = if (operator.isNotEmpty() && operator != "Unknown") operator else "$networkType Cell",
+        identity = cellKey,
+        primaryMetric = "$signalStrength dBm",
+        secondaryMetric = "$networkType · MCC $mcc MNC $mnc",
+        count = count,
+        key = cellKey,
+        displaySignal = signalStrength
     )
 
     private fun openDeviceDetail(deviceType: String, key: String) {
