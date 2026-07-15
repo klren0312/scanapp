@@ -39,6 +39,26 @@ CREATE TABLE LocationRecord (
 
 CREATE INDEX idx_location_timestamp ON LocationRecord(timestamp);
 
+CREATE TABLE CellScanRecord (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cellKey TEXT NOT NULL UNIQUE,
+    networkType TEXT NOT NULL,
+    operator TEXT NOT NULL,
+    mcc INTEGER NOT NULL,
+    mnc INTEGER NOT NULL,
+    lac INTEGER NOT NULL,
+    cid INTEGER NOT NULL,
+    signalStrength INTEGER NOT NULL,
+    timestamp INTEGER NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX idx_cell_timestamp ON CellScanRecord(timestamp);
+CREATE INDEX idx_cell_networkType ON CellScanRecord(networkType);
+CREATE INDEX idx_cell_cellKey ON CellScanRecord(cellKey);
+
 selectAllWifiRecords:
 SELECT * FROM WifiScanRecord ORDER BY timestamp DESC;
 
@@ -136,3 +156,39 @@ SELECT IFNULL(SUM(count), 0) FROM WifiScanRecord;
 
 sumBluetoothCount:
 SELECT IFNULL(SUM(count), 0) FROM BluetoothScanRecord;
+
+selectAllCellRecords:
+SELECT * FROM CellScanRecord ORDER BY timestamp DESC;
+
+selectCellByCellKey:
+SELECT * FROM CellScanRecord WHERE cellKey = ?;
+
+selectCellRecordsPaginated:
+SELECT * FROM CellScanRecord ORDER BY timestamp DESC LIMIT :limit OFFSET :offset;
+
+selectCellRecordsPaginatedBySignal:
+SELECT * FROM CellScanRecord ORDER BY signalStrength DESC LIMIT :limit OFFSET :offset;
+
+countCellRecords:
+SELECT COUNT(*) FROM CellScanRecord;
+
+sumCellCount:
+SELECT IFNULL(SUM(count), 0) FROM CellScanRecord;
+
+insertCellRecord:
+INSERT INTO CellScanRecord (cellKey, networkType, operator, mcc, mnc, lac, cid, signalStrength, timestamp, latitude, longitude, count)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateCellRecord:
+UPDATE CellScanRecord
+SET count = count + 1,
+    networkType = ?,
+    operator = ?,
+    signalStrength = ?,
+    timestamp = ?,
+    latitude = ?,
+    longitude = ?
+WHERE cellKey = ?;
+
+deleteAllCellRecords:
+DELETE FROM CellScanRecord;
