@@ -2,10 +2,13 @@ package com.example.scanapp.service
 
 import android.content.Context
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
+import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.platform.AndroidBluetoothScanner
+import com.example.scanapp.platform.AndroidCellScanner
 import com.example.scanapp.platform.AndroidWifiScanner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +29,7 @@ class AndroidScannerService(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val wifiScanner = AndroidWifiScanner(context)
     private val bluetoothScanner = AndroidBluetoothScanner(context)
+    private val cellScanner = AndroidCellScanner(context)
 
     private val _isScanning = MutableStateFlow(false)
     override val isScanning: StateFlow<Boolean> = _isScanning
@@ -64,13 +68,17 @@ class AndroidScannerService(
         bluetoothScanner.startScan(
             callback = { record ->
                 scope.launch {
-                    val location = locationService.getCurrentLocation()
-                    val recordWithLocation = record.copy(
-                        latitude = location?.latitude ?: 0.0,
-                        longitude = location?.longitude ?: 0.0
-                    )
-                    bluetoothDao.insertBatch(listOf(recordWithLocation))
-                    _bluetoothDevices.value = bluetoothDao.getAllRecords()
+                    try {
+                        val location = locationService.getCurrentLocation()
+                        val recordWithLocation = record.copy(
+                            latitude = location?.latitude ?: 0.0,
+                            longitude = location?.longitude ?: 0.0
+                        )
+                        bluetoothDao.insertBatch(listOf(recordWithLocation))
+                        _bluetoothDevices.value = bluetoothDao.getAllRecords()
+                    } catch (e: Exception) {
+                        android.util.Log.e("AndroidScannerService", "Bluetooth save error: ${e.message}")
+                    }
                 }
             },
             onError = { error ->
@@ -91,13 +99,17 @@ class AndroidScannerService(
         bluetoothScanner.startScan(
             callback = { record ->
                 scope.launch {
-                    val location = locationService.getCurrentLocation()
-                    val recordWithLocation = record.copy(
-                        latitude = location?.latitude ?: 0.0,
-                        longitude = location?.longitude ?: 0.0
-                    )
-                    bluetoothDao.insertBatch(listOf(recordWithLocation))
-                    _bluetoothDevices.value = bluetoothDao.getAllRecords()
+                    try {
+                        val location = locationService.getCurrentLocation()
+                        val recordWithLocation = record.copy(
+                            latitude = location?.latitude ?: 0.0,
+                            longitude = location?.longitude ?: 0.0
+                        )
+                        bluetoothDao.insertBatch(listOf(recordWithLocation))
+                        _bluetoothDevices.value = bluetoothDao.getAllRecords()
+                    } catch (e: Exception) {
+                        android.util.Log.e("AndroidScannerService", "Bluetooth save error: ${e.message}")
+                    }
                 }
             },
             onError = { error ->
@@ -107,22 +119,43 @@ class AndroidScannerService(
 
         scanJob = scope.launch {
             while (true) {
-                // 扫描WiFi
-                wifiScanner.startScan()
-                val wifiDevices = wifiScanner.scanWifiNetworks()
-                _wifiDevices.value = wifiDevices
+                try {
+                    // 扫描WiFi
+                    wifiScanner.startScan()
+                    val wifiDevices = wifiScanner.scanWifiNetworks()
+                    _wifiDevices.value = wifiDevices
 
-                // 获取当前位置（一次获取，多次使用）
-                val location = locationService.getCurrentLocation()
+                    // 获取当前位置（一次获取，多次使用）
+                    val location = locationService.getCurrentLocation()
 
-                // 批量保存WiFi到数据库
-                val devicesWithLocation = wifiDevices.map { device ->
-                    device.copy(
-                        latitude = location?.latitude ?: 0.0,
-                        longitude = location?.longitude ?: 0.0
-                    )
+                    // 批量保存WiFi到数据库
+                    val devicesWithLocation = wifiDevices.map { device ->
+                        device.copy(
+                            latitude = location?.latitude ?: 0.0,
+                            longitude = location?.longitude ?: 0.0
+                        )
+                    }
+                    wifiDao.insertBatch(devicesWithLocation)
+
+                    val cellResults = try {
+                        cellScanner.scanCellInfo()
+                    } catch (e: Exception) {
+                        android.util.Log.e("AndroidScannerService", "Cell scan error: ${e.message}")
+                        emptyList()
+                    }
+                    if (cellResults.isNotEmpty()) {
+                        val cellDao = CellScanDao(DatabaseFactory.getDatabase())
+                        val cellWithLocation = cellResults.map { record ->
+                            record.copy(
+                                latitude = location?.latitude ?: 0.0,
+                                longitude = location?.longitude ?: 0.0
+                            )
+                        }
+                        cellDao.insertBatch(cellWithLocation)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AndroidScannerService", "WiFi scan/save error: ${e.message}")
                 }
-                wifiDao.insertBatch(devicesWithLocation)
 
                 delay(5000) // 每5秒扫描一次
             }
