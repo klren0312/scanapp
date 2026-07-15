@@ -9,10 +9,12 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.platform.AndroidBluetoothScanner
+import com.example.scanapp.platform.AndroidCellScanner
 import com.example.scanapp.platform.AndroidLocationTracker
 import com.example.scanapp.platform.AndroidWifiScanner
 import com.example.scanapp.models.WifiScanRecord
@@ -30,6 +32,7 @@ class BackgroundScanService : Service() {
 
     private lateinit var wifiScanner: AndroidWifiScanner
     private lateinit var bluetoothScanner: AndroidBluetoothScanner
+    private lateinit var cellScanner: AndroidCellScanner
     private lateinit var locationTracker: AndroidLocationTracker
     private val scope = CoroutineScope(Dispatchers.IO)
     private var scanningJob: Job? = null
@@ -44,6 +47,7 @@ class BackgroundScanService : Service() {
 
         wifiScanner = AndroidWifiScanner(this)
         bluetoothScanner = AndroidBluetoothScanner(this)
+        cellScanner = AndroidCellScanner(this)
         locationTracker = AndroidLocationTracker(this)
 
         createNotificationChannel()
@@ -74,14 +78,18 @@ class BackgroundScanService : Service() {
         bluetoothScanner.startScan(
             callback = { record ->
                 scope.launch {
-                    val location = locationTracker.getCurrentLocation()
-                    val recordWithLocation = record.copy(
-                        latitude = location?.latitude ?: 0.0,
-                        longitude = location?.longitude ?: 0.0
-                    )
-                    val database = DatabaseFactory.getDatabase()
-                    val bluetoothDao = BluetoothScanDao(database)
-                    bluetoothDao.insertBatch(listOf(recordWithLocation))
+                    try {
+                        val location = locationTracker.getCurrentLocation()
+                        val recordWithLocation = record.copy(
+                            latitude = location?.latitude ?: 0.0,
+                            longitude = location?.longitude ?: 0.0
+                        )
+                        val database = DatabaseFactory.getDatabase()
+                        val bluetoothDao = BluetoothScanDao(database)
+                        bluetoothDao.insertBatch(listOf(recordWithLocation))
+                    } catch (e: Exception) {
+                        android.util.Log.e("BackgroundScanService", "Bluetooth save error: ${e.message}")
+                    }
                 }
             },
             onError = { error ->
@@ -104,21 +112,43 @@ class BackgroundScanService : Service() {
                     }
                 } ?: emptyList()
 
-                val database = DatabaseFactory.getDatabase()
-                val wifiDao = WifiScanDao(database)
-                val recordsWithLocation = wifiResults.map { record ->
-                    record.copy(
-                        latitude = location?.latitude ?: 0.0,
-                        longitude = location?.longitude ?: 0.0
-                    )
-                }
-                if (recordsWithLocation.isNotEmpty()) {
-                    wifiDao.insertBatch(recordsWithLocation)
+                val cellResults = try {
+                    cellScanner.scanCellInfo()
+                } catch (e: Exception) {
+                    android.util.Log.e("BackgroundScanService", "Cell scan error: ${e.message}")
+                    emptyList()
                 }
 
-                location?.let {
-                    val locationDao = LocationDao(database)
-                    locationDao.insert(it)
+                try {
+                    val database = DatabaseFactory.getDatabase()
+                    val wifiDao = WifiScanDao(database)
+                    val cellDao = CellScanDao(database)
+                    val cellLat = location?.latitude ?: 0.0
+                    val cellLon = location?.longitude ?: 0.0
+
+                    val recordsWithLocation = wifiResults.map { record ->
+                        record.copy(
+                            latitude = cellLat,
+                            longitude = cellLon
+                        )
+                    }
+                    if (recordsWithLocation.isNotEmpty()) {
+                        wifiDao.insertBatch(recordsWithLocation)
+                    }
+
+                    if (cellResults.isNotEmpty()) {
+                        val cellWithLocation = cellResults.map { record ->
+                            record.copy(latitude = cellLat, longitude = cellLon)
+                        }
+                        cellDao.insertBatch(cellWithLocation)
+                    }
+
+                    location?.let {
+                        val locationDao = LocationDao(database)
+                        locationDao.insert(it)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BackgroundScanService", "WiFi/Cell save error: ${e.message}")
                 }
 
                 delay(scanInterval)
