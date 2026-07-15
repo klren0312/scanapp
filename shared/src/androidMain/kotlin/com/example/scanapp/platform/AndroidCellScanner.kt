@@ -1,5 +1,6 @@
 package com.example.scanapp.platform
 
+import android.Manifest
 import android.annotation.TargetApi
 import android.content.Context
 import android.os.Build
@@ -11,6 +12,8 @@ import android.telephony.CellInfoNr
 import android.telephony.CellInfoWcdma
 import android.telephony.CellSignalStrength
 import android.telephony.TelephonyManager
+import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.cellKeyOf
 
@@ -19,6 +22,8 @@ class AndroidCellScanner(private val context: Context) {
     private val telephonyManager =
         context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
+    @RequiresApi(Build.VERSION_CODES.R)
+    @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun scanCellInfo(): List<CellScanRecord> {
         val infos = telephonyManager.allCellInfo ?: return emptyList()
         val now = System.currentTimeMillis()
@@ -80,7 +85,7 @@ class AndroidCellScanner(private val context: Context) {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.Q)
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun identityNr(info: CellInfo): CellIdentityData? {
         val id = (info as? CellInfoNr)?.cellIdentity as? android.telephony.CellIdentityNr ?: return null
         return CellIdentityData(
@@ -92,6 +97,7 @@ class AndroidCellScanner(private val context: Context) {
         )
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun signalDbm(info: CellInfo): Int {
         val strength: CellSignalStrength = try {
             info.cellSignalStrength
@@ -102,11 +108,12 @@ class AndroidCellScanner(private val context: Context) {
     }
 
     private fun operatorName(info: CellInfo): String {
-        return runCatching { telephonyManager.networkOperatorName?.toString() ?: "Unknown" }
+        return runCatching { telephonyManager.networkOperatorName ?: "Unknown" }
             .getOrDefault("Unknown")
             .ifBlank { "Unknown" }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun toRecord(info: CellInfo, timestamp: Long): CellScanRecord? {
         val id = identity(info) ?: return null
         if (id.mcc <= 0 || id.mnc <= 0 || id.lac < 0 || id.cid < 0) return null
