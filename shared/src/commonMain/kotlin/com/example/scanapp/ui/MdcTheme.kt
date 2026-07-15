@@ -26,6 +26,7 @@ internal object MdcTheme {
         val outline = Color(0xffDADCE0L)
         val wifi = Color(0xff1565C0L)
         val bluetooth = Color(0xff00897BL)
+        val cell = Color(0xff6750A4L)
         val warning = Color(0xffE65100L)
         val rankingGold = Color(0xffFF8F00L)
     }

@@ -1,11 +1,13 @@
 package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
@@ -25,10 +27,12 @@ class StatisticsPage : Pager() {
 
     private var totalWifi by observable(0L)
     private var totalBluetooth by observable(0L)
+    private var totalCell by observable(0L)
     private var totalLocations by observable(0L)
     private var drawerOpen by observable(false)
     private var topWifi by observableList<WifiScanRecord>()
     private var topBluetooth by observableList<BluetoothScanRecord>()
+    private var topCell by observableList<CellScanRecord>()
     private var isPageActive = true
 
     override fun created() {
@@ -59,6 +63,7 @@ class StatisticsPage : Pager() {
             MdcCardRow {
                 MdcStatBadge("WiFi", { "${this@StatisticsPage.totalWifi}" }, MdcTheme.Colors.wifi)
                 MdcStatBadge("Bluetooth", { "${this@StatisticsPage.totalBluetooth}" }, MdcTheme.Colors.bluetooth)
+                MdcStatBadge("Cell", { "${this@StatisticsPage.totalCell}" }, MdcTheme.Colors.cell)
                 MdcStatBadge("Locations", { "${this@StatisticsPage.totalLocations}" }, MdcTheme.Colors.warning)
             }
 
@@ -90,6 +95,18 @@ class StatisticsPage : Pager() {
                 vif({ this@StatisticsPage.totalBluetooth == 0L }) {
                     MdcBodyText("No Bluetooth data", MdcTheme.Colors.onSurfaceVariant)
                 }
+
+                MdcSectionHeader("Top Cell")
+                vforIndex({ this@StatisticsPage.topCell }) { record, index, _ ->
+                    val itemContainer = this
+                    this@StatisticsPage.run {
+                        val name = if (record.operator.isNotEmpty() && record.operator != "Unknown") record.operator else "${record.networkType} Cell"
+                        itemContainer.MdcRankingRow(index, name, record.count, MdcTheme.Colors.cell)
+                    }
+                }
+                vif({ this@StatisticsPage.totalCell == 0L }) {
+                    MdcBodyText("No Cell data", MdcTheme.Colors.onSurfaceVariant)
+                }
             }
 
             MdcNavigationDrawerHost(
@@ -115,18 +132,23 @@ class StatisticsPage : Pager() {
             val db = DatabaseFactory.getDatabase()
             val wifiDao = WifiScanDao(db)
             val bluetoothDao = BluetoothScanDao(db)
+            val cellDao = CellScanDao(db)
             val locationDao = LocationDao(db)
 
             totalWifi = wifiDao.getCount()
             totalBluetooth = bluetoothDao.getCount()
+            totalCell = cellDao.getCount()
             totalLocations = locationDao.getCount()
             val latestTopWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
             val latestTopBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
+            val latestTopCell = cellDao.getAllRecords().sortedByDescending { it.count }.take(5)
             if (!isPageActive) return
             topWifi.clear()
             topWifi.addAll(latestTopWifi)
             topBluetooth.clear()
             topBluetooth.addAll(latestTopBluetooth)
+            topCell.clear()
+            topCell.addAll(latestTopCell)
         }.onFailure { CrashLogger.log("Statistics.refreshData", it) }
     }
 
