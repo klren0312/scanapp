@@ -37,7 +37,7 @@ class AndroidCellScanner(private val context: Context) {
                 "LTE",
                 norm(id.mccString?.toIntOrNull() ?: id.mcc ?: -1),
                 norm(id.mncString?.toIntOrNull() ?: id.mnc ?: -1),
-                norm(id.lac ?: -1).toLong(),
+                norm(id.tac ?: -1).toLong(),
                 norm(id.ci ?: -1).toLong()
             )
         }
