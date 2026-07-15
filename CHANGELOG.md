@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-15
+
+- Added **Cell (base station) scanning** for Android, available alongside WiFi and Bluetooth. Cells are polled via `TelephonyManager.getAllCellInfo()` on the same intervals as the background/worker scans (LTE/WCDMA/GSM/NR/CDMA; CDMA maps networkId→LAC, systemId→CID). Only Android implements real cell data; iOS/ohos are unaffected and still compile.
+- New `CellScanRecord` SQLDelight table + `CellScanDao`, surfaced through a unified `cellKey` (networkType:mcc:mnc:lac:cid). Insert-or-update preserves previously stored valid coordinates when a newer scan lacks a GPS fix (same rule as WiFi/Bluetooth).
+- UI: Scanner page shows a **Cell** count badge and merges cells into the recent-scans list; Device List gains a **Cell** tab with pagination and deep-link to detail; Device Detail renders a Cell branch (network/operator/MCC/MNC/LAC/CID/signal) with coordinate fallback to the nearest stored location; Statistics adds a **Cell** total + **Top Cell** ranking.
+- `AndroidManifest.xml`: added `READ_PHONE_STATE` for cell info.
+- Verification: not compiled (per `agent.md`); changes mirror the existing WiFi/Bluetooth `Dao`/`observableList`/`MdcTab`/`MdcRankingRow` patterns and reuse `DatabaseFactory.dbDispatcher` for all DB access.
+
 ## 2026-07-13
 
 - Removed the native Android title bar (ActionBar showing "ScanApp") by switching the application theme from `Theme.AppCompat.Light.DarkActionBar` to `Theme.AppCompat.Light.NoActionBar` in `AndroidManifest.xml`. Kuikly UI top bars are unchanged.
