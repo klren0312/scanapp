@@ -1,7 +1,6 @@
 package com.example.scanapp.platform
 
 import android.Manifest
-import android.annotation.TargetApi
 import android.content.Context
 import android.os.Build
 import android.telephony.CellInfo
@@ -17,7 +16,7 @@ import androidx.annotation.RequiresPermission
 import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.cellKeyOf
 
-class AndroidCellScanner(private val context: Context) {
+class AndroidCellScanner(context: Context) {
 
     private val telephonyManager =
         context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
@@ -48,37 +47,37 @@ class AndroidCellScanner(private val context: Context) {
         }
         return when (info) {
             is CellInfoLte -> {
-                val id = info.cellIdentity as? android.telephony.CellIdentityLte ?: return null
+                val id = info.cellIdentity
                 CellIdentityData(
                     "LTE",
-                    norm(id.mcc ?: -1),
-                    norm(id.mnc ?: -1),
-                    norm(id.tac ?: -1).toLong(),
-                    norm(id.ci ?: -1).toLong()
+                    norm(id.mccString?.toIntOrNull() ?: -1),
+                    norm(id.mncString?.toIntOrNull() ?: -1),
+                    norm(id.tac).toLong(),
+                    norm(id.ci).toLong()
                 )
             }
             is CellInfoWcdma -> {
-                val id = info.cellIdentity as? android.telephony.CellIdentityWcdma ?: return null
+                val id = info.cellIdentity
                 CellIdentityData(
                     "WCDMA",
-                    norm(id.mcc ?: -1),
-                    norm(id.mnc ?: -1),
-                    norm(id.lac ?: -1).toLong(),
-                    norm(id.cid ?: -1).toLong()
+                    norm(id.mccString?.toIntOrNull() ?: -1),
+                    norm(id.mncString?.toIntOrNull() ?: -1),
+                    norm(id.lac).toLong(),
+                    norm(id.cid).toLong()
                 )
             }
             is CellInfoGsm -> {
-                val id = info.cellIdentity as? android.telephony.CellIdentityGsm ?: return null
+                val id = info.cellIdentity
                 CellIdentityData(
                     "GSM",
-                    norm(id.mcc ?: -1),
-                    norm(id.mnc ?: -1),
-                    norm(id.lac ?: -1).toLong(),
-                    norm(id.cid ?: -1).toLong()
+                    norm(id.mccString?.toIntOrNull() ?: -1),
+                    norm(id.mncString?.toIntOrNull() ?: -1),
+                    norm(id.lac).toLong(),
+                    norm(id.cid).toLong()
                 )
             }
             is CellInfoCdma -> {
-                val id = info.cellIdentity as? android.telephony.CellIdentityCdma ?: return null
+                val id = info.cellIdentity
                 CellIdentityData("CDMA", -1, -1, norm(id.networkId).toLong(), norm(id.systemId).toLong())
             }
             else -> null
@@ -107,7 +106,7 @@ class AndroidCellScanner(private val context: Context) {
         return runCatching { strength.dbm }.getOrDefault(0)
     }
 
-    private fun operatorName(info: CellInfo): String {
+    private fun operatorName(): String {
         return runCatching { telephonyManager.networkOperatorName ?: "Unknown" }
             .getOrDefault("Unknown")
             .ifBlank { "Unknown" }
@@ -120,7 +119,7 @@ class AndroidCellScanner(private val context: Context) {
         return CellScanRecord(
             cellKey = cellKeyOf(id.type, id.mcc, id.mnc, id.lac, id.cid),
             networkType = id.type,
-            operator = operatorName(info),
+            operator = operatorName(),
             mcc = id.mcc,
             mnc = id.mnc,
             lac = id.lac,

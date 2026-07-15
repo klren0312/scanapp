@@ -45,6 +45,11 @@ class StatisticsPage : Pager() {
         super.pageWillDestroy()
     }
 
+    override fun pageDidAppear() {
+        super.pageDidAppear()
+        refresh()
+    }
+
     private fun refresh() {
         safeLaunch("Statistics.refresh") { refreshData() }
     }

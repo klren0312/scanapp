@@ -61,6 +61,11 @@ class ScannerPage : Pager() {
         super.pageWillDestroy()
     }
 
+    override fun pageDidAppear() {
+        super.pageDidAppear()
+        refreshData()
+    }
+
     override fun body(): ViewContainer<*, *>.() -> Unit = {
         View {
             attr {

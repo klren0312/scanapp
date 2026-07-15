@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 
 class LocationDao(private val database: ScanAppDatabase) {
 
-    suspend fun insert(record: LocationRecord) = withContext(Dispatchers.Default) {
+    suspend fun insert(record: LocationRecord) = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.insertLocationRecord(
             latitude = record.latitude,
             longitude = record.longitude,
@@ -17,7 +17,7 @@ class LocationDao(private val database: ScanAppDatabase) {
         )
     }
 
-    suspend fun insertBatch(records: List<LocationRecord>) = withContext(Dispatchers.Default) {
+    suspend fun insertBatch(records: List<LocationRecord>) = withContext(DatabaseFactory.dbDispatcher) {
         database.transaction {
             records.forEach { record ->
                 database.databaseQueries.insertLocationRecord(
@@ -31,7 +31,7 @@ class LocationDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getAllRecords(): List<LocationRecord> = withContext(Dispatchers.Default) {
+    suspend fun getAllRecords(): List<LocationRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectAllLocationRecords().executeAsList().map {
             LocationRecord(
                 id = it.id,
@@ -44,7 +44,7 @@ class LocationDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getRecordsPaginated(limit: Int, offset: Int): List<LocationRecord> = withContext(Dispatchers.Default) {
+    suspend fun getRecordsPaginated(limit: Int, offset: Int): List<LocationRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectLocationRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
             LocationRecord(
                 id = it.id,
@@ -57,11 +57,11 @@ class LocationDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getCount(): Long = withContext(Dispatchers.Default) {
+    suspend fun getCount(): Long = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.countLocationRecords().executeAsOne()
     }
 
-    suspend fun deleteAll() = withContext(Dispatchers.Default) {
+    suspend fun deleteAll() = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.deleteAllLocationRecords()
     }
 }

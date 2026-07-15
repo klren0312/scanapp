@@ -33,6 +33,11 @@ class SettingsPage : Pager() {
         loadSummary()
     }
 
+    override fun pageDidAppear() {
+        super.pageDidAppear()
+        loadSummary()
+    }
+
     override fun body(): ViewContainer<*, *>.() -> Unit = {
         View {
             attr {

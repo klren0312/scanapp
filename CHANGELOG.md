@@ -8,6 +8,8 @@
 - `AndroidManifest.xml`: added `READ_PHONE_STATE` for cell info.
 - Verification: not compiled (per `agent.md`); changes mirror the existing WiFi/Bluetooth `Dao`/`observableList`/`MdcTab`/`MdcRankingRow` patterns and reuse `DatabaseFactory.dbDispatcher` for all DB access.
 
+- Fixed stale data on pages that were opened before a scan ran: `StatisticsPage`, `ScannerPage`, `DeviceListPage`, and `SettingsPage` now reload their data in `pageDidAppear()` (Kuikly `Pager` lifecycle), so returning to a page after a background/worker scan refreshes the counts and lists instead of showing the old values from `created()`.
+
 ## 2026-07-13
 
 - Removed the native Android title bar (ActionBar showing "ScanApp") by switching the application theme from `Theme.AppCompat.Light.DarkActionBar` to `Theme.AppCompat.Light.NoActionBar` in `AndroidManifest.xml`. Kuikly UI top bars are unchanged.

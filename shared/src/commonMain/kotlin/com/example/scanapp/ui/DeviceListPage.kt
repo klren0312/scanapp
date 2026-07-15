@@ -70,6 +70,11 @@ class DeviceListPage : Pager() {
         super.pageWillDestroy()
     }
 
+    override fun pageDidAppear() {
+        super.pageDidAppear()
+        refresh()
+    }
+
     override fun body(): ViewContainer<*, *>.() -> Unit = {
         safe("DeviceList.body") {
             View {

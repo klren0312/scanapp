@@ -22,6 +22,10 @@ Every change must be closed with all of the following:
 
 Do not stage or commit unrelated user changes. If the worktree already has unrelated changes, leave them alone and stage only the files touched for the current task.
 
+## Coding Note
+
+写完代码后不需要执行编译/构建验证（不要运行 gradlew 编译命令）。直接完成改动、更新 CHANGELOG 并提交即可。
+
 ## Common Commands
 
 Use PowerShell from the repository root.

@@ -7,13 +7,13 @@ import kotlinx.coroutines.withContext
 
 class WifiScanDao(private val database: ScanAppDatabase) {
 
-    suspend fun insertOrUpdate(record: WifiScanRecord) = withContext(Dispatchers.Default) {
+    suspend fun insertOrUpdate(record: WifiScanRecord) = withContext(DatabaseFactory.dbDispatcher) {
         database.transaction {
             insertOrUpdateInTransaction(record)
         }
     }
 
-    suspend fun insertBatch(records: List<WifiScanRecord>) = withContext(Dispatchers.Default) {
+    suspend fun insertBatch(records: List<WifiScanRecord>) = withContext(DatabaseFactory.dbDispatcher) {
         database.transaction {
             records.forEach { record ->
                 insertOrUpdateInTransaction(record)
@@ -21,7 +21,7 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getAllRecords(): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+    suspend fun getAllRecords(): List<WifiScanRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectAllWifiRecords().executeAsList().map {
             WifiScanRecord(
                 id = it.id,
@@ -37,7 +37,7 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getRecordByBssid(bssid: String): WifiScanRecord? = withContext(Dispatchers.Default) {
+    suspend fun getRecordByBssid(bssid: String): WifiScanRecord? = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectWifiByBssid(bssid).executeAsOneOrNull()?.let {
             WifiScanRecord(
                 id = it.id,
@@ -53,7 +53,7 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getRecordsPaginated(limit: Int, offset: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+    suspend fun getRecordsPaginated(limit: Int, offset: Int): List<WifiScanRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectWifiRecordsPaginated(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
@@ -69,15 +69,15 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getCount(): Long = withContext(Dispatchers.Default) {
+    suspend fun getCount(): Long = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.countWifiRecords().executeAsOne()
     }
 
-    suspend fun getSeenTotal(): Long = withContext(Dispatchers.Default) {
+    suspend fun getSeenTotal(): Long = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.sumWifiCount().executeAsOne().IFNULL ?: 0L
     }
 
-    suspend fun getRecordsPaginatedOrderedBySignal(limit: Int, offset: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+    suspend fun getRecordsPaginatedOrderedBySignal(limit: Int, offset: Int): List<WifiScanRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectWifiRecordsPaginatedBySignal(limit = limit.toLong(), offset = offset.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
@@ -93,7 +93,7 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getRecordsBySignalStrength(minSignalStrength: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+    suspend fun getRecordsBySignalStrength(minSignalStrength: Int): List<WifiScanRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectWifiRecordsBySignalStrength(minSignalStrength.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
@@ -109,7 +109,7 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun getRecordsByFrequency(frequency: Int): List<WifiScanRecord> = withContext(Dispatchers.Default) {
+    suspend fun getRecordsByFrequency(frequency: Int): List<WifiScanRecord> = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.selectWifiRecordsByFrequency(frequency.toLong()).executeAsList().map {
             WifiScanRecord(
                 id = it.id,
@@ -125,7 +125,7 @@ class WifiScanDao(private val database: ScanAppDatabase) {
         }
     }
 
-    suspend fun deleteAll() = withContext(Dispatchers.Default) {
+    suspend fun deleteAll() = withContext(DatabaseFactory.dbDispatcher) {
         database.databaseQueries.deleteAllWifiRecords()
     }
 
@@ -143,13 +143,18 @@ class WifiScanDao(private val database: ScanAppDatabase) {
                 count = record.count.toLong()
             )
         } else {
+            // A scan without a GPS fix reports 0.0/NaN coordinates. Never overwrite a
+            // previously stored valid location with an invalid one.
+            val invalid = record.latitude.isNaN() || record.latitude.isInfinite() ||
+                record.longitude.isNaN() || record.longitude.isInfinite() ||
+                (record.latitude == 0.0 && record.longitude == 0.0)
             database.databaseQueries.updateWifiRecord(
                 ssid = record.ssid,
                 signalStrength = record.signalStrength.toLong(),
                 frequency = record.frequency.toLong(),
                 timestamp = record.timestamp,
-                latitude = record.latitude,
-                longitude = record.longitude,
+                latitude = if (invalid) existing.latitude else record.latitude,
+                longitude = if (invalid) existing.longitude else record.longitude,
                 bssid = record.bssid
             )
         }
