@@ -1,7 +1,8 @@
-package com.example.scanapp.ui
+﻿package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.CellScanDao
+import com.example.scanapp.service.cellReadinessHint
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
@@ -41,6 +42,7 @@ class DeviceListPage : Pager() {
     private var wifiDeviceCount by observable(0)
     private var bluetoothDeviceCount by observable(0)
     private var cellDeviceCount by observable(0)
+    private var cellHint by observable("")
     private var wifiSeenTotal by observable(0)
     private var bluetoothSeenTotal by observable(0)
     private var cellSeenTotal by observable(0)
@@ -144,10 +146,22 @@ class DeviceListPage : Pager() {
                         }
                     }
                     vif({ this@DeviceListPage.displayRecords.isEmpty() }) {
-                        MdcBodyText("No devices", MdcTheme.Colors.onSurfaceVariant)
+                        if (this@DeviceListPage.deviceFilter == "cell" && this@DeviceListPage.cellHint.isNotEmpty()) {
+                            View {
+                                attr {
+                                    marginTop(MdcTheme.Spacing.sm)
+                                    padding(MdcTheme.Spacing.md)
+                                    backgroundColor(MdcTheme.Colors.surfaceVariant)
+                                    borderRadius(12f)
+                                }
+                                MdcBodyText(this@DeviceListPage.cellHint, MdcTheme.Colors.warning)
+                            }
+                        } else {
+                            MdcBodyText("No devices", MdcTheme.Colors.onSurfaceVariant)
+                        }
                     }
                     vif({ this@DeviceListPage.isLoadingMore }) {
-                        MdcBodyText("Loading more…", MdcTheme.Colors.onSurfaceVariant)
+                        MdcBodyText("Loading more鈥?, MdcTheme.Colors.onSurfaceVariant)
                     }
                 }
 
@@ -191,6 +205,7 @@ class DeviceListPage : Pager() {
         wifiDeviceCount = wifiTotal
         bluetoothDeviceCount = bluetoothTotal
         cellDeviceCount = cellTotal
+        cellHint = cellReadinessHint(cellTotal.toLong())
         wifiSeenTotal = wifiDao.getSeenTotal().toInt()
         bluetoothSeenTotal = bluetoothDao.getSeenTotal().toInt()
         cellSeenTotal = cellDao.getSeenTotal().toInt()
@@ -239,6 +254,7 @@ class DeviceListPage : Pager() {
             loadedWifiCount += wifiPage.size
             loadedBluetoothCount += bluetoothPage.size
             loadedCellCount += cellPage.size
+            cellHint = cellReadinessHint(cellTotal.toLong())
             loadedItems.addAll(wifiPage.map { it.toDeviceItem() })
             loadedItems.addAll(bluetoothPage.map { it.toDeviceItem() })
             loadedItems.addAll(cellPage.map { it.toDeviceItem() })
@@ -291,7 +307,7 @@ class DeviceListPage : Pager() {
         title = if (operator.isNotEmpty() && operator != "Unknown") operator else "$networkType Cell",
         identity = cellKey,
         primaryMetric = "$signalStrength dBm",
-        secondaryMetric = "$networkType · MCC $mcc MNC $mnc",
+        secondaryMetric = "$networkType 路 MCC $mcc MNC $mnc",
         count = count,
         key = cellKey,
         displaySignal = signalStrength

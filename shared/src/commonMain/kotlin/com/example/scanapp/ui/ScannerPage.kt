@@ -6,7 +6,7 @@ import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.service.PlatformScanController
-import com.example.scanapp.service.getCellScanReadiness
+import com.example.scanapp.service.cellReadinessHint
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.FlexAlign
@@ -102,6 +102,7 @@ class ScannerPage : Pager() {
                 attr {
                     val message = when {
                         this@ScannerPage.scanStatus.isNotEmpty() -> this@ScannerPage.scanStatus
+                        this@ScannerPage.isScanning && this@ScannerPage.cellHint.isNotEmpty() -> this@ScannerPage.cellHint
                         this@ScannerPage.isScanning -> "Scanning... counts refresh every few seconds"
                         else -> "Device details are available in the Device List page"
                     }
@@ -161,23 +162,6 @@ class ScannerPage : Pager() {
                 }
             }
 
-            vif({ this@ScannerPage.cellHint.isNotEmpty() }) {
-                View {
-                    attr {
-                        marginTop(MdcTheme.Spacing.sm)
-                        padding(MdcTheme.Spacing.md)
-                        backgroundColor(MdcTheme.Colors.surfaceVariant)
-                        borderRadius(12f)
-                    }
-                    Text {
-                        attr {
-                            text(this@ScannerPage.cellHint)
-                            fontSize(MdcTheme.Typography.bodyMedium)
-                            color(MdcTheme.Colors.warning)
-                        }
-                    }
-                }
-            }
             MdcNavigationDrawerHost(
                 isOpen = { this@ScannerPage.drawerOpen },
                 currentPage = { "Scanner" },
@@ -246,16 +230,7 @@ class ScannerPage : Pager() {
         }
     }
 
-    private fun computeCellHint(count: Long): String {
-        if (count > 0L) return ""
-        return when (getCellScanReadiness()) {
-            com.example.scanapp.service.CellScanReadiness.MISSING_PERMISSION ->
-                "Cell (base station) needs location permission. Grant it, then restart scanning."
-            com.example.scanapp.service.CellScanReadiness.UNSUPPORTED ->
-                "Cell (base station) scanning is not available on this platform."
-            com.example.scanapp.service.CellScanReadiness.READY ->
-                "No cell towers detected yet. Move outdoors or wait a few cycles."
-        }
+    private fun computeCellHint(count: Long): String = cellReadinessHint(count)
     }
 }
 

@@ -1,6 +1,9 @@
 ﻿# Changelog
 
 
+- Reused the Cell-readiness hint on both pages: cellReadinessHint(count) now lives in commonMain (PlatformScanController) and returns an empty string when the count is positive. The Scanner status line shows the hint while scanning (instead of the duplicate dedicated block), and the Device List now shows the same hint in the empty state when the **Cell** tab is selected and no cells were found.
+
+
 - Scanner page now explains *why* the Cell (base station) count is zero: added a shared getCellScanReadiness() diagnostic (READY / MISSING_PERMISSION / UNSUPPORTED) with Android checking location permission and iOS/ohos returning UNSUPPORTED. When Cell count is 0 the Scanner shows a hint (grant location permission, not supported on this platform, or move outdoors/wait a few cycles).
 
 
