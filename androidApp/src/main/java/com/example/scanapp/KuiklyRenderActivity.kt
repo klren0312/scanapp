@@ -1,4 +1,5 @@
-package com.example.scanapp
+﻿package com.example.scanapp
+import com.example.scanapp.ActivityHolder
 
 import android.app.Activity
 import android.content.Context
@@ -31,12 +32,14 @@ class KuiklyRenderActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        ActivityHolder.set(this)
         if (::kuiklyView.isInitialized) {
             kuiklyView.onResume()
         }
     }
 
     override fun onPause() {
+        ActivityHolder.clear(this)
         if (::kuiklyView.isInitialized) {
             kuiklyView.onPause()
         }
@@ -44,9 +47,11 @@ class KuiklyRenderActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        ActivityHolder.clear(this)
         if (::kuiklyView.isInitialized) {
             kuiklyView.onDetach()
         }
+        ActivityHolder.clear(this)
         super.onDestroy()
     }
 

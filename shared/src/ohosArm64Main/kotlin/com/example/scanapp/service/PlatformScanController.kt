@@ -16,3 +16,5 @@ actual object PlatformScanController {
     actual fun openDeviceMap(latitude: Double, longitude: Double, title: String) {}
 }
 actual fun getCellScanReadiness(): CellScanReadiness = CellScanReadiness.UNSUPPORTED
+
+actual fun requestCellScanPermission() {}

@@ -32,3 +32,6 @@ fun cellReadinessHint(cellCount: Long): String {
             "No cell towers detected yet. Move outdoors or wait a few cycles."
     }
 }
+// Re-requests the location permission needed for cell (base station) scanning.
+// Only Android shows the OS permission dialog; iOS/ohos are no-ops.
+expect fun requestCellScanPermission()

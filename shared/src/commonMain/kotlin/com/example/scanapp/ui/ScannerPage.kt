@@ -7,6 +7,7 @@ import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.service.PlatformScanController
 import com.example.scanapp.service.cellReadinessHint
+import com.example.scanapp.service.requestCellScanPermission
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.FlexAlign
@@ -110,6 +111,30 @@ class ScannerPage : Pager() {
                     fontSize(MdcTheme.Typography.bodyLarge)
                     color(if (this@ScannerPage.isScanning) MdcTheme.Colors.warning else MdcTheme.Colors.onSurfaceVariant)
                     marginTop(MdcTheme.Spacing.sm)
+                }
+            }
+
+            vif({ this@ScannerPage.isScanning && this@ScannerPage.cellHint.contains("location permission") }) {
+                View {
+                    attr {
+                        marginTop(MdcTheme.Spacing.sm)
+                        padding(top = 10f, bottom = 10f, left = 14f, right = 14f)
+                        backgroundColor(MdcTheme.Colors.primary)
+                        borderRadius(16f)
+                        alignItems(FlexAlign.CENTER)
+                        justifyContent(FlexJustifyContent.CENTER)
+                    }
+                    event {
+                        click { this@ScannerPage.requestCellPermission() }
+                    }
+                    Text {
+                        attr {
+                            text("Grant location permission")
+                            fontSize(MdcTheme.Typography.labelLarge)
+                            fontWeightSemiBold()
+                            color(MdcTheme.Colors.onPrimary)
+                        }
+                    }
                 }
             }
 
@@ -230,7 +255,10 @@ class ScannerPage : Pager() {
         }
     }
 
-    private fun computeCellHint(count: Long): String = cellReadinessHint(count)
+
+    private fun requestCellPermission() {
+        requestCellScanPermission()
     }
+    private fun computeCellHint(count: Long): String = cellReadinessHint(count)
 }
 

@@ -3,6 +3,7 @@
 import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.service.cellReadinessHint
+import com.example.scanapp.service.requestCellScanPermission
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
@@ -155,6 +156,29 @@ class DeviceListPage : Pager() {
                                     borderRadius(12f)
                                 }
                                 MdcBodyText(this@DeviceListPage.cellHint, MdcTheme.Colors.warning)
+                                vif({ this@DeviceListPage.cellHint.contains("location permission") }) {
+                                    View {
+                                        attr {
+                                            marginTop(MdcTheme.Spacing.sm)
+                                            padding(top = 8f, bottom = 8f, left = 12f, right = 12f)
+                                            backgroundColor(MdcTheme.Colors.primary)
+                                            borderRadius(16f)
+                                            alignItems(FlexAlign.CENTER)
+                                            justifyContent(FlexJustifyContent.CENTER)
+                                        }
+                                        event {
+                                            click { this@DeviceListPage.requestCellPermission() }
+                                        }
+                                        Text {
+                                            attr {
+                                                text("Grant location permission")
+                                                fontSize(MdcTheme.Typography.labelLarge)
+                                                fontWeightSemiBold()
+                                                color(MdcTheme.Colors.onPrimary)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         } else {
                             MdcBodyText("No devices", MdcTheme.Colors.onSurfaceVariant)
@@ -266,6 +290,10 @@ class DeviceListPage : Pager() {
         }
     }
 
+
+    private fun requestCellPermission() {
+        requestCellScanPermission()
+    }
     private fun setFilter(type: String) {
         if (deviceFilter == type) return
         deviceFilter = type

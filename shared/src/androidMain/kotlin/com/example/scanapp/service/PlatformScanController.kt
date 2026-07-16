@@ -6,6 +6,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.scanapp.ActivityHolder
+import com.example.scanapp.PermissionHelper
 import com.example.scanapp.database.AndroidDatabaseDriver
 
 actual object PlatformScanController {
@@ -95,4 +98,12 @@ actual fun getCellScanReadiness(): CellScanReadiness {
         android.Manifest.permission.READ_PHONE_STATE
     ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     return if (fine || coarse) CellScanReadiness.READY else CellScanReadiness.MISSING_PERMISSION
+}
+actual fun requestCellScanPermission() {
+    val activity = ActivityHolder.currentActivity ?: return
+    PermissionHelper(activity).checkAndRequestPermissions { granted ->
+        if (granted) {
+            // Permission granted; the next scan cycle will pick up cell info.
+        }
+    }
 }

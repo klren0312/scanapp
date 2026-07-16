@@ -1,6 +1,11 @@
 ﻿# Changelog
 
 
+- Cell (base station) permission prompt is now actionable: the missing-permission hint on both the Scanner page and Device List (Cell tab) gained a **Grant location permission** button. Tapping it re-requests the runtime location permission via a new equestCellScanPermission() (Android shows the OS dialog; iOS/ohos no-op). Android bridges this through ActivityHolder (current KuiklyRenderActivity tracked on resume/clear on pause/destroy) and the existing PermissionHelper.
+
+- Fixed a stray brace in ScannerPage.computeCellHint left over from the prior refactor so the page compiles cleanly.
+
+
 - Reused the Cell-readiness hint on both pages: cellReadinessHint(count) now lives in commonMain (PlatformScanController) and returns an empty string when the count is positive. The Scanner status line shows the hint while scanning (instead of the duplicate dedicated block), and the Device List now shows the same hint in the empty state when the **Cell** tab is selected and no cells were found.
 
 
