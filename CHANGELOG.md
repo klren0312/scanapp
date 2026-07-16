@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-16
+
+- Scanner page is now **count-only**: removed the recent-scan card list and the per-second merged-list rebuild that made the page janky. While scanning it only refreshes WiFi/Bluetooth/Cell totals every 3s, with a shortcut to Device List for full records.
+- Cell (base station) scanning hardened on Android:
+  - Runtime request for `READ_PHONE_STATE` (already in the manifest) so cell reads are not silently empty.
+  - Dropped the incorrect API 30-only annotation; cell scan now works from minSdk 26 with API-safe identity parsing.
+  - Added `requestCellInfoUpdate` refresh, TD-SCDMA support, NR TAC/NCI with ARFCN/PCI fallback, CDMA no longer filtered out for missing MCC/MNC, and better permission/exception logging.
+- Device List remains the only place that shows full scan result lists.
+- Verification: not compiled (per `agent.md`); scoped UI/permission/scanner changes only.
+
 ## 2026-07-15
 
 - Added **Cell (base station) scanning** for Android, available alongside WiFi and Bluetooth. Cells are polled via `TelephonyManager.getAllCellInfo()` on the same intervals as the background/worker scans (LTE/WCDMA/GSM/NR/CDMA; CDMA maps networkId→LAC, systemId→CID). Only Android implements real cell data; iOS/ohos are unaffected and still compile.

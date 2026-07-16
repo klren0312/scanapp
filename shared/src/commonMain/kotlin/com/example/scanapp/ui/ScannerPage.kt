@@ -5,54 +5,32 @@ import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
-import com.example.scanapp.models.BluetoothScanRecord
-import com.example.scanapp.models.CellScanRecord
-import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.service.PlatformScanController
-import com.example.scanapp.util.diffUpdate
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.directives.vforLazy
-import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.reactive.handler.observableList
-import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
 @Page("Scanner")
 class ScannerPage : Pager() {
 
-    private data class MergedDevice(
-        val type: String,
-        val title: String,
-        val identity: String,
-        val primaryMetric: String,
-        val secondaryMetric: String,
-        val count: Int,
-        val timestamp: Long,
-        val tag: String,
-        val tagColor: Color
-    )
-
     private var isScanning by observable(false)
     private var scanStatus by observable("")
     private var wifiCount by observable(0L)
     private var bluetoothCount by observable(0L)
     private var cellCount by observable(0L)
-    private var mergedDevices by observableList<MergedDevice>()
     private var drawerOpen by observable(false)
     private var isPageActive = true
 
     override fun created() {
         super.created()
-        refreshData()
+        refreshCounts()
     }
 
     override fun pageWillDestroy() {
@@ -63,7 +41,7 @@ class ScannerPage : Pager() {
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        refreshData()
+        refreshCounts()
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -75,7 +53,7 @@ class ScannerPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcMenuTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.drawerOpen = true }
+            MdcMenuTopBar("Scanner") { this@ScannerPage.drawerOpen = true }
 
             MdcCardRow {
                 MdcStatBadge("WiFi", { "${this@ScannerPage.wifiCount}" }, MdcTheme.Colors.wifi)
@@ -121,8 +99,8 @@ class ScannerPage : Pager() {
                 attr {
                     val message = when {
                         this@ScannerPage.scanStatus.isNotEmpty() -> this@ScannerPage.scanStatus
-                        this@ScannerPage.isScanning -> "Scanning..."
-                        else -> ""
+                        this@ScannerPage.isScanning -> "Scanning... counts refresh every few seconds"
+                        else -> "Device details are available in the Device List page"
                     }
                     text(message)
                     fontSize(MdcTheme.Typography.bodyLarge)
@@ -131,29 +109,52 @@ class ScannerPage : Pager() {
                 }
             }
 
-            MdcSectionHeader("Recent Scans")
-            List {
+            View {
                 attr {
-                    flex(1f)
-                    marginTop(MdcTheme.Spacing.sm)
+                    marginTop(MdcTheme.Spacing.md)
+                    padding(MdcTheme.Spacing.md)
+                    backgroundColor(MdcTheme.Colors.surface)
+                    borderRadius(16f)
+                    boxShadow(MdcTheme.Elevation.level1)
                 }
-                vforLazy({ this@ScannerPage.mergedDevices }) { item, _, _ ->
-                    safe("Scanner.vforLazy") {
-                        MdcDeviceCard(
-                            title = item.title,
-                            identity = item.identity,
-                            primaryMetric = item.primaryMetric,
-                            secondaryMetric = item.secondaryMetric,
-                            count = item.count,
-                            color = item.tagColor,
-                            tag = item.tag,
-                            tagColor = item.tagColor,
-                            onClick = {}
-                        )
+                Text {
+                    attr {
+                        text("Live counts only")
+                        fontSize(MdcTheme.Typography.titleMedium)
+                        fontWeightSemiBold()
+                        color(MdcTheme.Colors.onSurface)
                     }
                 }
-                vif({ this@ScannerPage.mergedDevices.isEmpty() }) {
-                    MdcBodyText("No devices scanned yet", MdcTheme.Colors.onSurfaceVariant)
+                Text {
+                    attr {
+                        text("To reduce page jank, this screen no longer renders scan result cards. Open Device List to browse WiFi, Bluetooth, and Cell records.")
+                        fontSize(MdcTheme.Typography.bodyMedium)
+                        color(MdcTheme.Colors.onSurfaceVariant)
+                        marginTop(MdcTheme.Spacing.sm)
+                    }
+                }
+                View {
+                    attr {
+                        marginTop(MdcTheme.Spacing.md)
+                        padding(top = 10f, bottom = 10f, left = 14f, right = 14f)
+                        backgroundColor(MdcTheme.Colors.primary)
+                        borderRadius(16f)
+                        alignItems(FlexAlign.CENTER)
+                        justifyContent(FlexJustifyContent.CENTER)
+                    }
+                    event {
+                        click {
+                            this@ScannerPage.navigateTo("DeviceList")
+                        }
+                    }
+                    Text {
+                        attr {
+                            text("Open Device List")
+                            fontSize(MdcTheme.Typography.labelLarge)
+                            fontWeightSemiBold()
+                            color(MdcTheme.Colors.onPrimary)
+                        }
+                    }
                 }
             }
 
@@ -174,7 +175,7 @@ class ScannerPage : Pager() {
 
     private fun startScanning() {
         if (!PlatformScanController.isBluetoothEnabled()) {
-            scanStatus = "正在请求开启蓝牙..."
+            scanStatus = "Requesting Bluetooth..."
             PlatformScanController.requestEnableBluetooth(onEnabled = {
                 if (isPageActive) startScanningInternal()
             })
@@ -191,11 +192,12 @@ class ScannerPage : Pager() {
             isScanning = false
             return
         }
-        refreshData()
+        refreshCounts()
         safeLaunch("Scanner.loop") {
             while (isScanning && isPageActive) {
-                refreshData()
-                kotlinx.coroutines.delay(1000L)
+                refreshCounts()
+                // Count-only refresh is cheaper than rebuilding a device list every second.
+                kotlinx.coroutines.delay(3000L)
             }
         }
     }
@@ -204,11 +206,11 @@ class ScannerPage : Pager() {
         val result = PlatformScanController.stopBackgroundScanning()
         scanStatus = result.message
         isScanning = false
-        refreshData()
+        refreshCounts()
     }
 
-    private fun refreshData() {
-        safeLaunch("Scanner.refreshData") {
+    private fun refreshCounts() {
+        safeLaunch("Scanner.refreshCounts") {
             if (!isPageActive) return@safeLaunch
             runCatching {
                 val db = DatabaseFactory.getDatabase()
@@ -216,70 +218,10 @@ class ScannerPage : Pager() {
                 val bluetoothDao = BluetoothScanDao(db)
                 val cellDao = CellScanDao(db)
                 if (!isPageActive) return@safeLaunch
-                val wifiRecords = wifiDao.getRecordsPaginated(limit = 20, offset = 0)
-                val bluetoothRecords = bluetoothDao.getRecordsPaginated(limit = 20, offset = 0)
-                val cellRecords = cellDao.getRecordsPaginatedOrderedBySignal(limit = 20, offset = 0)
-                if (!isPageActive) return@safeLaunch
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
                 cellCount = cellDao.getCount()
-                this@ScannerPage.mergedDevices.diffUpdate(buildMergedDevices(wifiRecords, bluetoothRecords, cellRecords))
-            }.onFailure { CrashLogger.log("Scanner.refreshData", it) }
+            }.onFailure { CrashLogger.log("Scanner.refreshCounts", it) }
         }
-    }
-
-    private fun buildMergedDevices(
-        wifi: List<WifiScanRecord>,
-        bluetooth: List<BluetoothScanRecord>,
-        cell: List<CellScanRecord>
-    ): List<MergedDevice> {
-        val list = mutableListOf<MergedDevice>()
-        wifi.forEach {
-            list.add(
-                MergedDevice(
-                    type = "wifi",
-                    title = it.ssid.ifEmpty { "Unknown" },
-                    identity = it.bssid,
-                    primaryMetric = "${it.signalStrength} dBm",
-                    secondaryMetric = "${it.frequency} MHz",
-                    count = it.count,
-                    timestamp = it.timestamp,
-                    tag = "WiFi",
-                    tagColor = MdcTheme.Colors.wifi
-                )
-            )
-        }
-        bluetooth.forEach {
-            list.add(
-                MergedDevice(
-                    type = "bluetooth",
-                    title = it.name.ifEmpty { "Unknown" },
-                    identity = it.address,
-                    primaryMetric = "${it.rssi} dBm",
-                    secondaryMetric = it.deviceType,
-                    count = it.count,
-                    timestamp = it.timestamp,
-                    tag = "Bluetooth",
-                    tagColor = MdcTheme.Colors.bluetooth
-                )
-            )
-        }
-        cell.forEach {
-            list.add(
-                MergedDevice(
-                    type = "cell",
-                    title = if (it.operator.isNotEmpty() && it.operator != "Unknown") it.operator else "${it.networkType} Cell",
-                    identity = it.cellKey,
-                    primaryMetric = "${it.signalStrength} dBm",
-                    secondaryMetric = it.networkType,
-                    count = it.count,
-                    timestamp = it.timestamp,
-                    tag = "Cell",
-                    tagColor = MdcTheme.Colors.cell
-                )
-            )
-        }
-        list.sortByDescending { it.timestamp }
-        return list.take(40)
     }
 }
