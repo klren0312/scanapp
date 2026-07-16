@@ -6,9 +6,7 @@ import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
-import com.example.scanapp.models.BluetoothScanRecord
-import com.example.scanapp.models.CellScanRecord
-import com.example.scanapp.models.WifiScanRecord
+import com.example.scanapp.util.diffUpdate
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
@@ -22,6 +20,13 @@ import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.View
 
+private data class RankingItem(
+    val key: String,
+    val title: String,
+    val subtitle: String,
+    val count: Int
+)
+
 @Page("Statistics")
 class StatisticsPage : Pager() {
 
@@ -30,9 +35,9 @@ class StatisticsPage : Pager() {
     private var totalCell by observable(0L)
     private var totalLocations by observable(0L)
     private var drawerOpen by observable(false)
-    private var topWifi by observableList<WifiScanRecord>()
-    private var topBluetooth by observableList<BluetoothScanRecord>()
-    private var topCell by observableList<CellScanRecord>()
+    private var topWifi by observableList<RankingItem>()
+    private var topBluetooth by observableList<RankingItem>()
+    private var topCell by observableList<RankingItem>()
     private var isPageActive = true
 
     override fun created() {
@@ -83,7 +88,7 @@ class StatisticsPage : Pager() {
                 vforIndex({ this@StatisticsPage.topWifi }) { record, index, _ ->
                     val itemContainer = this
                     this@StatisticsPage.run {
-                        itemContainer.MdcRankingRow(index, record.ssid, record.count, MdcTheme.Colors.wifi)
+                        itemContainer.MdcRankingRow(index, record, MdcTheme.Colors.wifi)
                     }
                 }
                 vif({ this@StatisticsPage.totalWifi == 0L }) {
@@ -94,7 +99,7 @@ class StatisticsPage : Pager() {
                 vforIndex({ this@StatisticsPage.topBluetooth }) { record, index, _ ->
                     val itemContainer = this
                     this@StatisticsPage.run {
-                        itemContainer.MdcRankingRow(index, record.name, record.count, MdcTheme.Colors.bluetooth)
+                        itemContainer.MdcRankingRow(index, record, MdcTheme.Colors.bluetooth)
                     }
                 }
                 vif({ this@StatisticsPage.totalBluetooth == 0L }) {
@@ -105,8 +110,7 @@ class StatisticsPage : Pager() {
                 vforIndex({ this@StatisticsPage.topCell }) { record, index, _ ->
                     val itemContainer = this
                     this@StatisticsPage.run {
-                        val name = if (record.operator.isNotEmpty() && record.operator != "Unknown") record.operator else "${record.networkType} Cell"
-                        itemContainer.MdcRankingRow(index, name, record.count, MdcTheme.Colors.cell)
+                        itemContainer.MdcRankingRow(index, record, MdcTheme.Colors.cell)
                     }
                 }
                 vif({ this@StatisticsPage.totalCell == 0L }) {
@@ -117,16 +121,18 @@ class StatisticsPage : Pager() {
             MdcNavigationDrawerHost(
                 isOpen = { this@StatisticsPage.drawerOpen },
                 currentPage = { "Statistics" },
+                pageHeight = this@StatisticsPage.pagerData.pageViewHeight,
                 onClose = { this@StatisticsPage.drawerOpen = false },
                 onNavigate = { this@StatisticsPage.navigateTo(it) }
             )
         }
     }
 
-    private fun ViewContainer<*, *>.MdcRankingRow(index: Int, name: String, count: Int, color: Color) {
+    private fun ViewContainer<*, *>.MdcRankingRow(index: Int, item: RankingItem, color: Color) {
         MdcListItem(
-            title = "${index + 1}. ${name.ifEmpty { "Unknown" }}",
-            trailing = "$count times",
+            title = "${index + 1}. ${item.title}",
+            subtitle = item.subtitle,
+            trailing = "${item.count} times",
             trailingColor = color
         )
     }
@@ -144,16 +150,57 @@ class StatisticsPage : Pager() {
             totalBluetooth = bluetoothDao.getCount()
             totalCell = cellDao.getCount()
             totalLocations = locationDao.getCount()
-            val latestTopWifi = wifiDao.getAllRecords().sortedByDescending { it.count }.take(5)
-            val latestTopBluetooth = bluetoothDao.getAllRecords().sortedByDescending { it.count }.take(5)
-            val latestTopCell = cellDao.getAllRecords().sortedByDescending { it.count }.take(5)
+            val latestTopWifi = wifiDao.getAllRecords()
+                .sortedWith(
+                    compareByDescending<com.example.scanapp.models.WifiScanRecord> { it.count }
+                        .thenByDescending { it.timestamp }
+                )
+                .take(5)
+                .map {
+                    RankingItem(
+                        key = it.bssid,
+                        title = it.ssid.ifEmpty { "Unknown WiFi" },
+                        subtitle = it.bssid,
+                        count = it.count
+                    )
+                }
+            val latestTopBluetooth = bluetoothDao.getAllRecords()
+                .sortedWith(
+                    compareByDescending<com.example.scanapp.models.BluetoothScanRecord> { it.count }
+                        .thenByDescending { it.timestamp }
+                )
+                .take(5)
+                .map {
+                    RankingItem(
+                        key = it.address,
+                        title = it.name.ifEmpty { "Unknown Bluetooth" },
+                        subtitle = it.address,
+                        count = it.count
+                    )
+                }
+            val latestTopCell = cellDao.getAllRecords()
+                .sortedWith(
+                    compareByDescending<com.example.scanapp.models.CellScanRecord> { it.count }
+                        .thenByDescending { it.timestamp }
+                )
+                .take(5)
+                .map {
+                    val name = if (it.operator.isNotEmpty() && it.operator != "Unknown") {
+                        it.operator
+                    } else {
+                        "${it.networkType} Cell"
+                    }
+                    RankingItem(
+                        key = it.cellKey,
+                        title = name,
+                        subtitle = "${it.networkType} | ${it.cellKey}",
+                        count = it.count
+                    )
+                }
             if (!isPageActive) return
-            topWifi.clear()
-            topWifi.addAll(latestTopWifi)
-            topBluetooth.clear()
-            topBluetooth.addAll(latestTopBluetooth)
-            topCell.clear()
-            topCell.addAll(latestTopCell)
+            topWifi.diffUpdate(latestTopWifi)
+            topBluetooth.diffUpdate(latestTopBluetooth)
+            topCell.diffUpdate(latestTopCell)
         }.onFailure { CrashLogger.log("Statistics.refreshData", it) }
     }
 

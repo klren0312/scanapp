@@ -88,6 +88,7 @@ class SettingsPage : Pager() {
             MdcNavigationDrawerHost(
                 isOpen = { this@SettingsPage.drawerOpen },
                 currentPage = { "Settings" },
+                pageHeight = this@SettingsPage.pagerData.pageViewHeight,
                 onClose = { this@SettingsPage.drawerOpen = false },
                 onNavigate = { this@SettingsPage.navigateTo(it) }
             )

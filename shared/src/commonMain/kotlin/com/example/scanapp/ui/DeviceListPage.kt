@@ -17,6 +17,7 @@ import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
+import com.tencent.kuikly.core.module.CalendarModule
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
@@ -35,7 +36,8 @@ private data class DeviceItem(
     val secondaryMetric: String,
     val count: Int,
     val key: String,
-    val displaySignal: Int
+    val displaySignal: Int,
+    val timestamp: Long
 )
 
 @Page("DeviceList")
@@ -139,6 +141,7 @@ class DeviceListPage : Pager() {
                                 primaryMetric = item.primaryMetric,
                                 secondaryMetric = item.secondaryMetric,
                                 count = item.count,
+                                scanTime = this@DeviceListPage.formatScanTime(item.timestamp),
                                 color = when (item.type) {
                                     "wifi" -> MdcTheme.Colors.wifi
                                     "cell" -> MdcTheme.Colors.cell
@@ -195,6 +198,7 @@ class DeviceListPage : Pager() {
                 MdcNavigationDrawerHost(
                     isOpen = { this@DeviceListPage.drawerOpen },
                     currentPage = { "DeviceList" },
+                    pageHeight = this@DeviceListPage.pagerData.pageViewHeight,
                     onClose = { this@DeviceListPage.drawerOpen = false },
                     onNavigate = { this@DeviceListPage.navigateTo(it) }
                 )
@@ -319,7 +323,8 @@ class DeviceListPage : Pager() {
         secondaryMetric = "$frequency MHz",
         count = count,
         key = bssid,
-        displaySignal = signalStrength
+        displaySignal = signalStrength,
+        timestamp = timestamp
     )
 
     private fun BluetoothScanRecord.toDeviceItem() = DeviceItem(
@@ -330,7 +335,8 @@ class DeviceListPage : Pager() {
         secondaryMetric = deviceType,
         count = count,
         key = address,
-        displaySignal = rssi
+        displaySignal = rssi,
+        timestamp = timestamp
     )
 
     private fun CellScanRecord.toDeviceItem() = DeviceItem(
@@ -341,8 +347,16 @@ class DeviceListPage : Pager() {
         secondaryMetric = "$networkType 路 MCC $mcc MNC $mnc",
         count = count,
         key = cellKey,
-        displaySignal = signalStrength
+        displaySignal = signalStrength,
+        timestamp = timestamp
     )
+
+    private fun formatScanTime(timestamp: Long): String {
+        return runCatching {
+            acquireModule<CalendarModule>(CalendarModule.MODULE_NAME)
+                .formatTime(timestamp, "yyyy-MM-dd HH:mm:ss")
+        }.getOrElse { timestamp.toString() }
+    }
 
     private fun openDeviceDetail(deviceType: String, key: String) {
         val pageData = JSONObject().apply {

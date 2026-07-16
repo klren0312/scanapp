@@ -72,6 +72,7 @@ class MapPage : Pager() {
             MdcNavigationDrawerHost(
                 isOpen = { this@MapPage.drawerOpen },
                 currentPage = { "Map" },
+                pageHeight = this@MapPage.pagerData.pageViewHeight,
                 onClose = { this@MapPage.drawerOpen = false },
                 onNavigate = { this@MapPage.navigateTo(it) }
             )

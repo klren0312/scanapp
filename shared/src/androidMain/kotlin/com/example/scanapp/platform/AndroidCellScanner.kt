@@ -14,6 +14,7 @@ import android.telephony.CellInfoWcdma
 import android.telephony.CellSignalStrength
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.cellKeyOf
 
@@ -29,18 +30,35 @@ class AndroidCellScanner(context: Context) {
     // fall back to the cached allCellInfo snapshot when the refresh is unavailable
     // or times out.
     fun scanCellInfo(): List<CellScanRecord> {
-        if (!hasLocationPermission()) {
-            android.util.Log.w("AndroidCellScanner", "Missing location permission for cell scan")
+        if (!hasFineLocation()) {
+            val msg = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                "Cell scan needs ACCESS_FINE_LOCATION (precise location). Coarse/approximate location returns no cells on Android 10+."
+            } else {
+                "Missing location permission for cell scan"
+            }
+            android.util.Log.w("AndroidCellScanner", msg)
+            CrashLogger.log("AndroidCellScanner", msg)
             return emptyList()
+        }
+
+        if (!hasPhoneState()) {
+            CrashLogger.log(
+                "AndroidCellScanner",
+                "READ_PHONE_STATE missing: cell identity (MCC/MNC/LAC/CID) will be masked. Grant Phone permission for full details."
+            )
         }
 
         val infos = try {
             requestFreshCellInfo()
         } catch (e: SecurityException) {
-            android.util.Log.e("AndroidCellScanner", "SecurityException reading cell info: ${e.message}")
+            val msg = "SecurityException reading cell info: ${e.message}"
+            android.util.Log.e("AndroidCellScanner", msg)
+            CrashLogger.log("AndroidCellScanner", msg)
             null
         } catch (e: Exception) {
-            android.util.Log.e("AndroidCellScanner", "Cell info read failed: ${e.message}")
+            val msg = "Cell info read failed: ${e.message}"
+            android.util.Log.e("AndroidCellScanner", msg)
+            CrashLogger.log("AndroidCellScanner", msg)
             null
         } ?: runCatching { telephonyManager.allCellInfo }.getOrNull() ?: return emptyList()
 
@@ -48,18 +66,20 @@ class AndroidCellScanner(context: Context) {
         val records = infos.mapNotNull { info ->
             runCatching { toRecord(info, now) }.getOrNull()
         }
-        android.util.Log.d(
-            "AndroidCellScanner",
-            "Cell scan raw=${infos.size}, kept=${records.size}, sdk=${Build.VERSION.SDK_INT}"
-        )
+        val summary = "Cell scan raw=${infos.size}, kept=${records.size}, sdk=${Build.VERSION.SDK_INT}"
+        android.util.Log.d("AndroidCellScanner", summary)
+        CrashLogger.log("AndroidCellScanner", summary)
         return records
     }
 
-    private fun hasLocationPermission(): Boolean {
+    // Cell info requires ACCESS_FINE_LOCATION on Android 10+ (API 29). Coarse/approximate
+    // location yields an empty list, so gate on fine location there.
+    private fun hasFineLocation(): Boolean {
         val fine = ContextCompat.checkSelfPermission(
             appContext,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return fine
         val coarse = ContextCompat.checkSelfPermission(
             appContext,
             Manifest.permission.ACCESS_COARSE_LOCATION
@@ -266,23 +286,52 @@ class AndroidCellScanner(context: Context) {
 
     private fun toRecord(info: CellInfo, timestamp: Long): CellScanRecord? {
         val id = identity(info) ?: return null
-        // CDMA intentionally uses mcc/mnc = 0. Other networks still require valid MCC/MNC.
         val isCdma = id.type == "CDMA"
-        if (!isCdma && (id.mcc <= 0 || id.mnc < 0)) return null
-        if (id.lac < 0 || id.cid < 0) return null
-        return CellScanRecord(
-            cellKey = cellKeyOf(id.type, id.mcc, id.mnc, id.lac, id.cid),
-            networkType = id.type,
-            operator = operatorName(),
-            mcc = id.mcc,
-            mnc = id.mnc,
-            lac = id.lac,
-            cid = id.cid,
-            signalStrength = signalDbm(info),
-            timestamp = timestamp,
-            latitude = 0.0,
-            longitude = 0.0,
-            count = 1
-        )
+        // On Android, cell identity (MCC/MNC/LAC/CID) is masked to -1 unless the app holds
+        // ACCESS_FINE_LOCATION + READ_PHONE_STATE. Keep the detected cell (keyed by type +
+        // signal) instead of dropping it, so the scan is never silent; full identity is
+        // restored once those permissions are granted.
+        val identityValid = isCdma || (id.mcc > 0 && id.mnc >= 0 && id.lac >= 0 && id.cid >= 0)
+        return if (identityValid) {
+            CellScanRecord(
+                cellKey = cellKeyOf(id.type, id.mcc, id.mnc, id.lac, id.cid),
+                networkType = id.type,
+                operator = operatorName(),
+                mcc = id.mcc,
+                mnc = id.mnc,
+                lac = id.lac,
+                cid = id.cid,
+                signalStrength = signalDbm(info),
+                timestamp = timestamp,
+                latitude = 0.0,
+                longitude = 0.0,
+                count = 1
+            )
+        } else {
+            CrashLogger.log(
+                "AndroidCellScanner",
+                "Cell identity masked (need READ_PHONE_STATE + fine location): type=${id.type}, signal=${signalDbm(info)}"
+            )
+            CellScanRecord(
+                cellKey = cellKeyOf(id.type, 0, 0, signalDbm(info).toLong(), 0L),
+                networkType = id.type,
+                operator = operatorName(),
+                mcc = 0,
+                mnc = 0,
+                lac = 0L,
+                cid = 0L,
+                signalStrength = signalDbm(info),
+                timestamp = timestamp,
+                latitude = 0.0,
+                longitude = 0.0,
+                count = 1
+            )
+        }
     }
+
+    private fun hasPhoneState(): Boolean =
+        ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
 }

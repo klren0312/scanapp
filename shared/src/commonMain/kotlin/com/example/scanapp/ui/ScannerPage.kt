@@ -190,6 +190,7 @@ class ScannerPage : Pager() {
             MdcNavigationDrawerHost(
                 isOpen = { this@ScannerPage.drawerOpen },
                 currentPage = { "Scanner" },
+                pageHeight = this@ScannerPage.pagerData.pageViewHeight,
                 onClose = { this@ScannerPage.drawerOpen = false },
                 onNavigate = { this@ScannerPage.navigateTo(it) }
             )

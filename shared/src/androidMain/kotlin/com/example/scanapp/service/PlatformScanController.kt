@@ -88,15 +88,20 @@ actual fun getCellScanReadiness(): CellScanReadiness {
         context,
         android.Manifest.permission.ACCESS_FINE_LOCATION
     ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    val coarse = androidx.core.content.ContextCompat.checkSelfPermission(
-        context,
-        android.Manifest.permission.ACCESS_COARSE_LOCATION
-    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    // Cell info requires ACCESS_FINE_LOCATION on Android 10+; coarse/approximate is not enough.
+    val locationOk = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) fine else {
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
     val phoneState = androidx.core.content.ContextCompat.checkSelfPermission(
         context,
         android.Manifest.permission.READ_PHONE_STATE
     ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    return if (fine || coarse) CellScanReadiness.READY else CellScanReadiness.MISSING_PERMISSION
+    // Cell identity (MCC/MNC/LAC/CID) is masked without READ_PHONE_STATE, so the scan
+    // only yields useful records once it is granted.
+    return if (locationOk && phoneState) CellScanReadiness.READY else CellScanReadiness.MISSING_PERMISSION
 }
 actual fun requestCellScanPermission() {
     val activity = ActivityHolder.currentActivity ?: return
