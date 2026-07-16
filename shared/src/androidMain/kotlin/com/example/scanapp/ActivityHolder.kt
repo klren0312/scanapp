@@ -1,20 +1,20 @@
-﻿package com.example.scanapp
+package com.example.scanapp
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
 
 // Holds the currently visible KuiklyRenderActivity so shared (commonMain) UI code
 // can trigger Android-specific actions (e.g. runtime permission requests) that need
-// an Activity context. Set on each activity resume, cleared on pause/destroy.
+// a ComponentActivity context. Set on each activity resume, cleared on pause/destroy.
 object ActivityHolder {
     @Volatile
-    var currentActivity: Activity? = null
+    var currentActivity: ComponentActivity? = null
         private set
 
-    fun set(activity: Activity) {
+    fun set(activity: ComponentActivity) {
         currentActivity = activity
     }
 
-    fun clear(activity: Activity) {
+    fun clear(activity: ComponentActivity) {
         if (currentActivity === activity) {
             currentActivity = null
         }

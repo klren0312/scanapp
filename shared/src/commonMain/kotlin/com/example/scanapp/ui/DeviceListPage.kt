@@ -14,13 +14,16 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.vforLazy
 import com.tencent.kuikly.core.directives.vif
+import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.List
+import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.example.scanapp.util.diffUpdate
 

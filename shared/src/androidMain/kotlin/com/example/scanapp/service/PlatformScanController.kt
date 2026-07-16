@@ -6,7 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import androidx.activity.result.contract.ActivityResultContracts
 import com.example.scanapp.ActivityHolder
 import com.example.scanapp.PermissionHelper
 import com.example.scanapp.database.AndroidDatabaseDriver
