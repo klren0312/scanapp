@@ -1,4 +1,7 @@
-# Changelog
+﻿# Changelog
+
+
+- Fix cell (base station) scans returning nothing on Android 10+: scanCellInfo() previously fire-and-forgot requestCellInfoUpdate and then read the synchronous allCellInfo immediately, which is still empty until the async callback fires, so each cycle stored zero cells. It now awaits the fresh snapshot from requestCellInfoUpdate (<=3s) and only falls back to the cached allCellInfo on timeout/error. Called from background coroutine dispatchers (IO/Default), so the bounded wait is safe.
 
 ## 2026-07-16
 
@@ -12,7 +15,7 @@
 
 ## 2026-07-15
 
-- Added **Cell (base station) scanning** for Android, available alongside WiFi and Bluetooth. Cells are polled via `TelephonyManager.getAllCellInfo()` on the same intervals as the background/worker scans (LTE/WCDMA/GSM/NR/CDMA; CDMA maps networkId→LAC, systemId→CID). Only Android implements real cell data; iOS/ohos are unaffected and still compile.
+- Added **Cell (base station) scanning** for Android, available alongside WiFi and Bluetooth. Cells are polled via `TelephonyManager.getAllCellInfo()` on the same intervals as the background/worker scans (LTE/WCDMA/GSM/NR/CDMA; CDMA maps networkId鈫扡AC, systemId鈫扖ID). Only Android implements real cell data; iOS/ohos are unaffected and still compile.
 - New `CellScanRecord` SQLDelight table + `CellScanDao`, surfaced through a unified `cellKey` (networkType:mcc:mnc:lac:cid). Insert-or-update preserves previously stored valid coordinates when a newer scan lacks a GPS fix (same rule as WiFi/Bluetooth).
 - UI: Scanner page shows a **Cell** count badge and merges cells into the recent-scans list; Device List gains a **Cell** tab with pagination and deep-link to detail; Device Detail renders a Cell branch (network/operator/MCC/MNC/LAC/CID/signal) with coordinate fallback to the nearest stored location; Statistics adds a **Cell** total + **Top Cell** ranking.
 - `AndroidManifest.xml`: added `READ_PHONE_STATE` for cell info.

@@ -1,4 +1,4 @@
-package com.example.scanapp.platform
+﻿package com.example.scanapp.platform
 
 import android.Manifest
 import android.content.Context
@@ -23,24 +23,26 @@ class AndroidCellScanner(context: Context) {
     private val telephonyManager =
         appContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
+    // On Android Q+, a fresh cell-info snapshot is delivered asynchronously via
+    // requestCellInfoUpdate. Reading allCellInfo synchronously right after the
+    // request is still empty on most devices, so we await the callback and only
+    // fall back to the cached allCellInfo snapshot when the refresh is unavailable
+    // or times out.
     fun scanCellInfo(): List<CellScanRecord> {
         if (!hasLocationPermission()) {
             android.util.Log.w("AndroidCellScanner", "Missing location permission for cell scan")
             return emptyList()
         }
 
-        // Trigger a fresh cell-info update when possible; still fall back to the cached snapshot.
-        requestCellInfoRefresh()
-
         val infos = try {
-            telephonyManager.allCellInfo
+            requestFreshCellInfo()
         } catch (e: SecurityException) {
             android.util.Log.e("AndroidCellScanner", "SecurityException reading cell info: ${e.message}")
             null
         } catch (e: Exception) {
             android.util.Log.e("AndroidCellScanner", "Cell info read failed: ${e.message}")
             null
-        } ?: return emptyList()
+        } ?: runCatching { telephonyManager.allCellInfo }.getOrNull() ?: return emptyList()
 
         val now = System.currentTimeMillis()
         val records = infos.mapNotNull { info ->
@@ -65,19 +67,33 @@ class AndroidCellScanner(context: Context) {
         return fine || coarse
     }
 
-    private fun requestCellInfoRefresh() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
-        runCatching {
+    // Awaits a fresh cell-info snapshot on Android Q+ and returns it, or null when
+    // the async refresh is unavailable/timed out so the caller falls back to allCellInfo.
+    // Only overrides onCellInfo (not onError) to stay link-safe on API 29.
+    private fun requestFreshCellInfo(): List<CellInfo>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return null
+        }
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var snapshot: List<CellInfo>? = null
+        return runCatching {
             telephonyManager.requestCellInfoUpdate(
                 appContext.mainExecutor,
                 object : TelephonyManager.CellInfoCallback() {
                     override fun onCellInfo(cellInfo: MutableList<CellInfo>) {
-                        // Snapshot is consumed on the next scan cycle via allCellInfo.
+                        snapshot = ArrayList(cellInfo)
+                        latch.countDown()
                     }
                 }
             )
-        }.onFailure {
-            android.util.Log.w("AndroidCellScanner", "requestCellInfoUpdate failed: ${it.message}")
+            if (!latch.await(3L, java.util.concurrent.TimeUnit.SECONDS)) {
+                android.util.Log.w("AndroidCellScanner", "requestCellInfoUpdate timed out, using cached snapshot")
+                return@runCatching null
+            }
+            snapshot
+        }.getOrElse {
+            android.util.Log.w("AndroidCellScanner", "requestCellInfoUpdate error: ${it.message}")
+            null
         }
     }
 
