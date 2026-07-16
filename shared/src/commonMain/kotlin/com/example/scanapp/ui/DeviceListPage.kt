@@ -185,7 +185,7 @@ class DeviceListPage : Pager() {
                         }
                     }
                     vif({ this@DeviceListPage.isLoadingMore }) {
-                        MdcBodyText("Loading more鈥?, MdcTheme.Colors.onSurfaceVariant)
+                        MdcBodyText("Loading more...", MdcTheme.Colors.onSurfaceVariant)
                     }
                 }
 

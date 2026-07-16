@@ -1,7 +1,10 @@
 ﻿# Changelog
 
 
-- Cell (base station) permission prompt is now actionable: the missing-permission hint on both the Scanner page and Device List (Cell tab) gained a **Grant location permission** button. Tapping it re-requests the runtime location permission via a new equestCellScanPermission() (Android shows the OS dialog; iOS/ohos no-op). Android bridges this through ActivityHolder (current KuiklyRenderActivity tracked on resume/clear on pause/destroy) and the existing PermissionHelper.
+- Fix compile error in DeviceListPage: the pre-existing MdcBodyText Loading more string literal was corrupted (mojibake) into an unterminated string, breaking the build. Restored to 'Loading more...'.
+
+
+- Cell (base station) permission prompt is now actionable: the missing-permission hint on both the Scanner page and Device List (Cell tab) gained a **Grant location permission** button. Tapping it re-requests the runtime location permission via a new requestCellScanPermission() (Android shows the OS dialog; iOS/ohos no-op). Android bridges this through ActivityHolder (current KuiklyRenderActivity tracked on resume/clear on pause/destroy) and the existing PermissionHelper.
 
 - Fixed a stray brace in ScannerPage.computeCellHint left over from the prior refactor so the page compiles cleanly.
 
