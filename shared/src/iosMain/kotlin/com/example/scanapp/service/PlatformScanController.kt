@@ -1,4 +1,4 @@
-package com.example.scanapp.service
+﻿package com.example.scanapp.service
 
 actual object PlatformScanController {
     actual fun startBackgroundScanning(): ScanControlResult {
@@ -15,3 +15,4 @@ actual object PlatformScanController {
 
     actual fun openDeviceMap(latitude: Double, longitude: Double, title: String) {}
 }
+actual fun getCellScanReadiness(): CellScanReadiness = CellScanReadiness.UNSUPPORTED

@@ -1,4 +1,4 @@
-package com.example.scanapp.service
+﻿package com.example.scanapp.service
 
 expect object PlatformScanController {
     fun startBackgroundScanning(): ScanControlResult
@@ -12,3 +12,10 @@ data class ScanControlResult(
     val success: Boolean,
     val message: String
 )
+enum class CellScanReadiness {
+    READY,
+    MISSING_PERMISSION,
+    UNSUPPORTED
+}
+
+expect fun getCellScanReadiness(): CellScanReadiness

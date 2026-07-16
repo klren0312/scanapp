@@ -1,4 +1,4 @@
-package com.example.scanapp.ui
+﻿package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.CellScanDao
@@ -6,12 +6,14 @@ import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.service.PlatformScanController
+import com.example.scanapp.service.getCellScanReadiness
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Text
@@ -25,6 +27,7 @@ class ScannerPage : Pager() {
     private var wifiCount by observable(0L)
     private var bluetoothCount by observable(0L)
     private var cellCount by observable(0L)
+    private var cellHint by observable("")
     private var drawerOpen by observable(false)
     private var isPageActive = true
 
@@ -158,6 +161,23 @@ class ScannerPage : Pager() {
                 }
             }
 
+            vif({ this@ScannerPage.cellHint.isNotEmpty() }) {
+                View {
+                    attr {
+                        marginTop(MdcTheme.Spacing.sm)
+                        padding(MdcTheme.Spacing.md)
+                        backgroundColor(MdcTheme.Colors.surfaceVariant)
+                        borderRadius(12f)
+                    }
+                    Text {
+                        attr {
+                            text(this@ScannerPage.cellHint)
+                            fontSize(MdcTheme.Typography.bodyMedium)
+                            color(MdcTheme.Colors.warning)
+                        }
+                    }
+                }
+            }
             MdcNavigationDrawerHost(
                 isOpen = { this@ScannerPage.drawerOpen },
                 currentPage = { "Scanner" },
@@ -221,7 +241,21 @@ class ScannerPage : Pager() {
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
                 cellCount = cellDao.getCount()
+                cellHint = computeCellHint(cellCount)
             }.onFailure { CrashLogger.log("Scanner.refreshCounts", it) }
         }
     }
+
+    private fun computeCellHint(count: Long): String {
+        if (count > 0L) return ""
+        return when (getCellScanReadiness()) {
+            com.example.scanapp.service.CellScanReadiness.MISSING_PERMISSION ->
+                "Cell (base station) needs location permission. Grant it, then restart scanning."
+            com.example.scanapp.service.CellScanReadiness.UNSUPPORTED ->
+                "Cell (base station) scanning is not available on this platform."
+            com.example.scanapp.service.CellScanReadiness.READY ->
+                "No cell towers detected yet. Move outdoors or wait a few cycles."
+        }
+    }
 }
+

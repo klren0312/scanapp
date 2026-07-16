@@ -1,4 +1,4 @@
-package com.example.scanapp.service
+﻿package com.example.scanapp.service
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -79,4 +79,20 @@ actual object PlatformScanController {
             context.startActivity(intent)
         }
     }
+}
+actual fun getCellScanReadiness(): CellScanReadiness {
+    val context = runCatching { AndroidDatabaseDriver.requireContext() }.getOrNull() ?: return CellScanReadiness.UNSUPPORTED
+    val fine = androidx.core.content.ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    val coarse = androidx.core.content.ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    val phoneState = androidx.core.content.ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.READ_PHONE_STATE
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    return if (fine || coarse) CellScanReadiness.READY else CellScanReadiness.MISSING_PERMISSION
 }

@@ -1,6 +1,9 @@
 ﻿# Changelog
 
 
+- Scanner page now explains *why* the Cell (base station) count is zero: added a shared getCellScanReadiness() diagnostic (READY / MISSING_PERMISSION / UNSUPPORTED) with Android checking location permission and iOS/ohos returning UNSUPPORTED. When Cell count is 0 the Scanner shows a hint (grant location permission, not supported on this platform, or move outdoors/wait a few cycles).
+
+
 - Fix cell (base station) scans returning nothing on Android 10+: scanCellInfo() previously fire-and-forgot requestCellInfoUpdate and then read the synchronous allCellInfo immediately, which is still empty until the async callback fires, so each cycle stored zero cells. It now awaits the fresh snapshot from requestCellInfoUpdate (<=3s) and only falls back to the cached allCellInfo on timeout/error. Called from background coroutine dispatchers (IO/Default), so the bounded wait is safe.
 
 ## 2026-07-16
