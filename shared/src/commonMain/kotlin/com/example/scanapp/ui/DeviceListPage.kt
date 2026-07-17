@@ -6,7 +6,6 @@ import com.example.scanapp.service.cellReadinessHint
 import com.example.scanapp.service.requestCellScanPermission
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
-import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.WifiScanRecord
@@ -36,7 +35,6 @@ private data class DeviceItem(
     val secondaryMetric: String,
     val count: Int,
     val key: String,
-    val displaySignal: Int,
     val timestamp: Long
 )
 
@@ -241,9 +239,9 @@ class DeviceListPage : Pager() {
         bluetoothSeenTotal = bluetoothDao.getSeenTotal().toInt()
         cellSeenTotal = cellDao.getSeenTotal().toInt()
 
-        val wifiPage = wifiDao.getRecordsPaginatedOrderedBySignal(pageSize, 0)
-        val bluetoothPage = bluetoothDao.getRecordsPaginatedOrderedByRssi(pageSize, 0)
-        val cellPage = cellDao.getRecordsPaginatedOrderedBySignal(pageSize, 0)
+        val wifiPage = wifiDao.getRecordsPaginated(pageSize, 0)
+        val bluetoothPage = bluetoothDao.getRecordsPaginated(pageSize, 0)
+        val cellPage = cellDao.getRecordsPaginated(pageSize, 0)
         loadedWifiCount = wifiPage.size
         loadedBluetoothCount = bluetoothPage.size
         loadedCellCount = cellPage.size
@@ -267,17 +265,17 @@ class DeviceListPage : Pager() {
             val cellDao = CellScanDao(db)
 
             val wifiPage = if (loadedWifiCount < wifiTotal) {
-                wifiDao.getRecordsPaginatedOrderedBySignal(pageSize, loadedWifiCount)
+                wifiDao.getRecordsPaginated(pageSize, loadedWifiCount)
             } else {
                 emptyList()
             }
             val bluetoothPage = if (loadedBluetoothCount < bluetoothTotal) {
-                bluetoothDao.getRecordsPaginatedOrderedByRssi(pageSize, loadedBluetoothCount)
+                bluetoothDao.getRecordsPaginated(pageSize, loadedBluetoothCount)
             } else {
                 emptyList()
             }
             val cellPage = if (loadedCellCount < cellTotal) {
-                cellDao.getRecordsPaginatedOrderedBySignal(pageSize, loadedCellCount)
+                cellDao.getRecordsPaginated(pageSize, loadedCellCount)
             } else {
                 emptyList()
             }
@@ -311,7 +309,7 @@ class DeviceListPage : Pager() {
         val filtered = loadedItems.filter {
             deviceFilter == "all" || it.type == deviceFilter
         }
-        val sorted = filtered.sortedByDescending { it.displaySignal }
+        val sorted = filtered.sortedByDescending { it.timestamp }
         displayRecords.diffUpdate(sorted)
     }
 
@@ -323,7 +321,6 @@ class DeviceListPage : Pager() {
         secondaryMetric = "$frequency MHz",
         count = count,
         key = bssid,
-        displaySignal = signalStrength,
         timestamp = timestamp
     )
 
@@ -335,7 +332,6 @@ class DeviceListPage : Pager() {
         secondaryMetric = deviceType,
         count = count,
         key = address,
-        displaySignal = rssi,
         timestamp = timestamp
     )
 
@@ -347,7 +343,6 @@ class DeviceListPage : Pager() {
         secondaryMetric = "$networkType 路 MCC $mcc MNC $mnc",
         count = count,
         key = cellKey,
-        displaySignal = signalStrength,
         timestamp = timestamp
     )
 

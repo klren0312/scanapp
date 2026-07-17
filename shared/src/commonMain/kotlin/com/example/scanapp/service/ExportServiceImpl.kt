@@ -1,6 +1,7 @@
 package com.example.scanapp.service
 
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
 import kotlinx.serialization.Serializable
@@ -13,7 +14,8 @@ private val json = Json { prettyPrint = true }
 private data class ExportData(
     val wifiRecords: List<WifiScanRecord>,
     val bluetoothRecords: List<BluetoothScanRecord>,
-    val locationRecords: List<LocationRecord>
+    val locationRecords: List<LocationRecord>,
+    val cellRecords: List<CellScanRecord>
 )
 
 class ExportServiceImpl : ExportService {
@@ -21,7 +23,8 @@ class ExportServiceImpl : ExportService {
     override suspend fun exportToCsv(
         wifiRecords: List<WifiScanRecord>,
         bluetoothRecords: List<BluetoothScanRecord>,
-        locationRecords: List<LocationRecord>
+        locationRecords: List<LocationRecord>,
+        cellRecords: List<CellScanRecord>
     ): String {
         val sb = StringBuilder()
 
@@ -49,6 +52,19 @@ class ExportServiceImpl : ExportService {
 
         sb.appendLine()
 
+        sb.appendLine("Cell Records")
+        sb.appendLine("Network Type,Operator,MCC,MNC,LAC/TAC,CID/CI,Signal Strength,Timestamp,Latitude,Longitude,Count")
+        cellRecords.forEach { record ->
+            sb.appendLine(
+                "${escapeCsv(record.networkType)},${escapeCsv(record.operator)}," +
+                    "${record.mcc},${record.mnc},${record.lac},${record.cid}," +
+                    "${record.signalStrength},${record.timestamp},${record.latitude}," +
+                    "${record.longitude},${record.count}"
+            )
+        }
+
+        sb.appendLine()
+
         sb.appendLine("Location Records")
         sb.appendLine("Latitude,Longitude,Altitude,Accuracy,Timestamp")
         locationRecords.forEach { record ->
@@ -64,10 +80,11 @@ class ExportServiceImpl : ExportService {
     override suspend fun exportToJson(
         wifiRecords: List<WifiScanRecord>,
         bluetoothRecords: List<BluetoothScanRecord>,
-        locationRecords: List<LocationRecord>
+        locationRecords: List<LocationRecord>,
+        cellRecords: List<CellScanRecord>
     ): String {
         return json.encodeToString(
-            ExportData(wifiRecords, bluetoothRecords, locationRecords)
+            ExportData(wifiRecords, bluetoothRecords, locationRecords, cellRecords)
         )
     }
 

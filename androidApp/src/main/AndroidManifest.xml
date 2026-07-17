@@ -34,8 +34,9 @@
         android:name=".ScanApplication"
         android:allowBackup="true"
         android:label="ScanApp"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        android:theme="@style/Theme.ScanApp">
         <activity
             android:name=".MainActivity"
             android:exported="true">

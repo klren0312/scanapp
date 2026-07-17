@@ -2,16 +2,13 @@ package com.example.scanapp
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.scanapp.database.BluetoothScanDao
@@ -24,27 +21,52 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import kotlin.math.PI
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 class OsmMapActivity : AppCompatActivity() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var mapView: MapView
     private lateinit var statusView: TextView
-    private lateinit var drawerOverlay: FrameLayout
     private var pollingJob: Job? = null
     private var showingSinglePoint = false
 
-    private val wifiColor = 0xFF1565C0.toInt()
-    private val bluetoothColor = 0xFF6A1B9A.toInt()
+    private val backgroundColor = 0xFF0D0F10.toInt()
+    private val surfaceColor = 0xFF171A1C.toInt()
+    private val onSurfaceColor = 0xFFE7ECEE.toInt()
+    private val wifiColor = 0xFF62B5FF.toInt()
+    private val bluetoothColor = 0xFF64D8CB.toInt()
+    private val gaodeTileSource = object : OnlineTileSourceBase(
+        "Gaode",
+        1,
+        20,
+        256,
+        ".png",
+        arrayOf(
+            "http://wprd01.is.autonavi.com/appmaptile?",
+            "http://wprd02.is.autonavi.com/appmaptile?",
+            "http://wprd03.is.autonavi.com/appmaptile?",
+            "http://wprd04.is.autonavi.com/appmaptile?"
+        )
+    ) {
+        override fun getTileURLString(mapTileIndex: Long): String {
+            val x = MapTileIndex.getX(mapTileIndex)
+            val y = MapTileIndex.getY(mapTileIndex)
+            val z = MapTileIndex.getZoom(mapTileIndex)
+            return "${baseUrl}x=$x&y=$y&z=$z&lang=zh_cn&size=1&scl=1&style=7"
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,21 +82,23 @@ class OsmMapActivity : AppCompatActivity() {
         }
 
         mapView = MapView(this).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            setTileSource(gaodeTileSource)
             setMultiTouchControls(true)
+            setBackgroundColor(backgroundColor)
             controller.setZoom(3.0)
             controller.setCenter(GeoPoint(0.0, 0.0))
         }
 
         statusView = TextView(this).apply {
-            setTextColor(Color.WHITE)
-            setBackgroundColor(0x99000000.toInt())
+            setTextColor(onSurfaceColor)
+            setBackgroundColor(0xE6171A1C.toInt())
             textSize = 14f
             setPadding(24, 12, 24, 12)
             text = "Loading devices..."
         }
 
         val root = FrameLayout(this).apply {
+            setBackgroundColor(backgroundColor)
             addView(
                 mapView,
                 FrameLayout.LayoutParams(
@@ -89,26 +113,18 @@ class OsmMapActivity : AppCompatActivity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.TOP or Gravity.START
                 ).apply {
-                    setMargins(24, 24, 24, 24)
+                    setMargins(24, dp(84), 24, 24)
                 }
             )
             addView(
-                createMenuButton(),
+                createBackButton(),
                 FrameLayout.LayoutParams(
-                    dp(72),
-                    dp(40),
-                    Gravity.TOP or Gravity.END
+                    dp(48),
+                    dp(48),
+                    Gravity.TOP or Gravity.START
                 ).apply {
                     setMargins(24, 24, 24, 24)
                 }
-            )
-            drawerOverlay = createDrawerOverlay()
-            addView(
-                drawerOverlay,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
             )
         }
         setContentView(root)
@@ -133,7 +149,7 @@ class OsmMapActivity : AppCompatActivity() {
             )
         )
         mapView.controller.setZoom(16.0)
-        mapView.controller.setCenter(GeoPoint(latitude, longitude))
+        mapView.controller.setCenter(toGaodePoint(latitude, longitude))
         mapView.invalidate()
         statusView.text = if (title.isNotEmpty()) "查看设备: $title" else "Device location"
     }
@@ -165,10 +181,6 @@ class OsmMapActivity : AppCompatActivity() {
         if (pollingJob?.isActive == true) return
         pollingJob = scope.launch {
             loadDevices()
-            while (true) {
-                delay(3000)
-                loadDevices()
-            }
         }
     }
 
@@ -222,8 +234,8 @@ class OsmMapActivity : AppCompatActivity() {
             )
         }
 
-        val points = validWifi.map { GeoPoint(it.latitude, it.longitude) } +
-            validBluetooth.map { GeoPoint(it.latitude, it.longitude) }
+        val points = validWifi.map { toGaodePoint(it.latitude, it.longitude) } +
+            validBluetooth.map { toGaodePoint(it.latitude, it.longitude) }
 
         if (points.isNotEmpty()) {
             if (points.size == 1) {
@@ -250,7 +262,7 @@ class OsmMapActivity : AppCompatActivity() {
         color: Int
     ): Marker {
         return Marker(mapView).apply {
-            position = GeoPoint(latitude, longitude)
+            position = toGaodePoint(latitude, longitude)
             this.title = title
             this.snippet = snippet
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -271,7 +283,7 @@ class OsmMapActivity : AppCompatActivity() {
             isAntiAlias = true
             style = Paint.Style.STROKE
             strokeWidth = dp(2).toFloat()
-            this.color = Color.WHITE
+            this.color = onSurfaceColor
         }
         canvas.drawCircle(size / 2f, size / 2f, radius, fill)
         canvas.drawCircle(size / 2f, size / 2f, radius, border)
@@ -283,76 +295,53 @@ class OsmMapActivity : AppCompatActivity() {
         return latitude in -90.0..90.0 && longitude in -180.0..180.0
     }
 
-    private fun createMenuButton(): TextView {
+    private fun toGaodePoint(latitude: Double, longitude: Double): GeoPoint {
+        if (longitude !in 72.004..137.8347 || latitude !in 0.8293..55.8271) {
+            return GeoPoint(latitude, longitude)
+        }
+
+        var latitudeOffset = transformLatitude(longitude - 105.0, latitude - 35.0)
+        var longitudeOffset = transformLongitude(longitude - 105.0, latitude - 35.0)
+        val latitudeRadians = latitude / 180.0 * PI
+        var magic = sin(latitudeRadians)
+        magic = 1 - GCJ_EARTH_ECCENTRICITY * magic * magic
+        val sqrtMagic = sqrt(magic)
+        latitudeOffset = latitudeOffset * 180.0 /
+            ((GCJ_EARTH_RADIUS * (1 - GCJ_EARTH_ECCENTRICITY)) / (magic * sqrtMagic) * PI)
+        longitudeOffset = longitudeOffset * 180.0 /
+            (GCJ_EARTH_RADIUS / sqrtMagic * kotlin.math.cos(latitudeRadians) * PI)
+        return GeoPoint(latitude + latitudeOffset, longitude + longitudeOffset)
+    }
+
+    private fun transformLatitude(x: Double, y: Double): Double {
+        var result = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y +
+            0.1 * x * y + 0.2 * sqrt(kotlin.math.abs(x))
+        result += (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0
+        result += (20.0 * sin(y * PI) + 40.0 * sin(y / 3.0 * PI)) * 2.0 / 3.0
+        result += (160.0 * sin(y / 12.0 * PI) + 320 * sin(y * PI / 30.0)) * 2.0 / 3.0
+        return result
+    }
+
+    private fun transformLongitude(x: Double, y: Double): Double {
+        var result = 300.0 + x + 2.0 * y + 0.1 * x * x +
+            0.1 * x * y + 0.1 * sqrt(kotlin.math.abs(x))
+        result += (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0
+        result += (20.0 * sin(x * PI) + 40.0 * sin(x / 3.0 * PI)) * 2.0 / 3.0
+        result += (150.0 * sin(x / 12.0 * PI) + 300.0 * sin(x / 30.0 * PI)) * 2.0 / 3.0
+        return result
+    }
+
+    private fun createBackButton(): TextView {
         return TextView(this).apply {
-            text = "Menu"
-            textSize = 14f
-            setTextColor(0xff1565C0.toInt())
-            setBackgroundColor(Color.WHITE)
+            text = "\u2190"
+            textSize = 28f
+            contentDescription = "Back"
+            includeFontPadding = false
+            setTextColor(onSurfaceColor)
+            setBackgroundColor(surfaceColor)
             gravity = Gravity.CENTER
-            setOnClickListener { drawerOverlay.visibility = View.VISIBLE }
+            setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         }
-    }
-
-    private fun createDrawerOverlay(): FrameLayout {
-        return FrameLayout(this).apply {
-            visibility = View.GONE
-            setBackgroundColor(0x66000000)
-            setOnClickListener { visibility = View.GONE }
-            addView(
-                LinearLayout(this@OsmMapActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(Color.WHITE)
-                    setPadding(dp(16), dp(16), dp(16), dp(16))
-                    isClickable = true
-                    addView(drawerTitle())
-                    addView(drawerItem("Scanner", "Scanner", selected = false))
-                    addView(drawerItem("Devices", "DeviceList", selected = false))
-                    addView(drawerItem("Statistics", "Statistics", selected = false))
-                    addView(drawerItem("Map", "Map", selected = true))
-                    addView(drawerItem("Settings", "Settings", selected = false))
-                },
-                FrameLayout.LayoutParams(
-                    dp(280),
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    Gravity.START
-                )
-            )
-        }
-    }
-
-    private fun drawerTitle(): TextView {
-        return TextView(this).apply {
-            text = "ScanApp"
-            textSize = 20f
-            setTextColor(0xff1C1B1F.toInt())
-            setPadding(0, 0, 0, dp(16))
-        }
-    }
-
-    private fun drawerItem(label: String, pageName: String, selected: Boolean): TextView {
-        return TextView(this).apply {
-            text = label
-            textSize = 14f
-            setTextColor(if (selected) 0xff001D36.toInt() else 0xff1C1B1F.toInt())
-            setBackgroundColor(if (selected) 0xffD1E4FF.toInt() else Color.TRANSPARENT)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(8), 0, dp(8), 0)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(44)
-            ).apply {
-                bottomMargin = dp(4)
-            }
-            setOnClickListener { navigateFromDrawer(pageName) }
-        }
-    }
-
-    private fun navigateFromDrawer(pageName: String) {
-        drawerOverlay.visibility = View.GONE
-        if (pageName == "Map") return
-        KuiklyRenderActivity.start(this, pageName)
-        finish()
     }
 
     private fun dp(value: Int): Int {
@@ -360,6 +349,8 @@ class OsmMapActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val GCJ_EARTH_RADIUS = 6378245.0
+        private const val GCJ_EARTH_ECCENTRICITY = 0.006693421622965943
         const val EXTRA_LAT = "extra_lat"
         const val EXTRA_LON = "extra_lon"
         const val EXTRA_TITLE = "extra_title"

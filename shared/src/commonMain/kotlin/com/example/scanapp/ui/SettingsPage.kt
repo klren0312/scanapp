@@ -1,6 +1,7 @@
 package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
 import com.example.scanapp.database.WifiScanDao
@@ -25,6 +26,7 @@ class SettingsPage : Pager() {
     private var exportResult by observable("")
     private var totalWifi by observable(0L)
     private var totalBluetooth by observable(0L)
+    private var totalCell by observable(0L)
     private var totalLocations by observable(0L)
     private var drawerOpen by observable(false)
 
@@ -59,6 +61,7 @@ class SettingsPage : Pager() {
                 MdcCardRow {
                     MdcStatBadge("WiFi", { "${this@SettingsPage.totalWifi}" }, MdcTheme.Colors.wifi)
                     MdcStatBadge("Bluetooth", { "${this@SettingsPage.totalBluetooth}" }, MdcTheme.Colors.bluetooth)
+                    MdcStatBadge("Cell", { "${this@SettingsPage.totalCell}" }, MdcTheme.Colors.cell)
                     MdcStatBadge("Locations", { "${this@SettingsPage.totalLocations}" }, MdcTheme.Colors.warning)
                 }
 
@@ -82,7 +85,7 @@ class SettingsPage : Pager() {
 
                 MdcSectionHeader("About")
                 MdcBodyText("ScanApp v1.0")
-                MdcCaption("WiFi / Bluetooth scanner built with Kuikly KMP")
+                MdcCaption("WiFi / Bluetooth / Cell scanner built with Kuikly KMP")
             }
 
             MdcNavigationDrawerHost(
@@ -101,12 +104,13 @@ class SettingsPage : Pager() {
                 val db = DatabaseFactory.getDatabase()
                 val wifiRecords = WifiScanDao(db).getAllRecords()
                 val bluetoothRecords = BluetoothScanDao(db).getAllRecords()
+                val cellRecords = CellScanDao(db).getAllRecords()
                 val locationRecords = LocationDao(db).getAllRecords()
                 val exporter = ExportServiceImpl()
                 val result = if (format == "csv") {
-                    exporter.exportToCsv(wifiRecords, bluetoothRecords, locationRecords)
+                    exporter.exportToCsv(wifiRecords, bluetoothRecords, locationRecords, cellRecords)
                 } else {
-                    exporter.exportToJson(wifiRecords, bluetoothRecords, locationRecords)
+                    exporter.exportToJson(wifiRecords, bluetoothRecords, locationRecords, cellRecords)
                 }
                 val exportFileResult = PlatformExportController.exportAndShareFile(
                     fileName = "scanapp-export.$format",
@@ -131,9 +135,11 @@ class SettingsPage : Pager() {
                 val db = DatabaseFactory.getDatabase()
                 WifiScanDao(db).deleteAll()
                 BluetoothScanDao(db).deleteAll()
+                CellScanDao(db).deleteAll()
                 LocationDao(db).deleteAll()
                 totalWifi = 0L
                 totalBluetooth = 0L
+                totalCell = 0L
                 totalLocations = 0L
                 exportResult = "All data cleared"
             }.onFailure {
@@ -149,6 +155,7 @@ class SettingsPage : Pager() {
                 val db = DatabaseFactory.getDatabase()
                 totalWifi = WifiScanDao(db).getCount()
                 totalBluetooth = BluetoothScanDao(db).getCount()
+                totalCell = CellScanDao(db).getCount()
                 totalLocations = LocationDao(db).getCount()
             }.onFailure { CrashLogger.log("Settings.loadSummary", it) }
         }

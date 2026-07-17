@@ -10,6 +10,7 @@ import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
+import com.example.scanapp.service.PlatformScanController
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
@@ -24,7 +25,14 @@ import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 @Page("DeviceDetail")
 class DeviceDetailPage : Pager() {
@@ -37,6 +45,8 @@ class DeviceDetailPage : Pager() {
     private var nearbyText by observable("Loading nearby locations...")
     private var currentLat by observable(0.0)
     private var currentLon by observable(0.0)
+    private var mapPreviewLoading by observable(false)
+    private var mapPreviewFailed by observable(false)
     private var isPageActive = true
 
     override fun created() {
@@ -131,7 +141,7 @@ class DeviceDetailPage : Pager() {
             }
             Text {
                 attr {
-                    text("真实地图（OpenStreetMap）")
+                    text("Gaode map")
                     fontSize(MdcTheme.Typography.bodySmall)
                     color(MdcTheme.Colors.onSurfaceVariant)
                     marginTop(2f)
@@ -140,13 +150,41 @@ class DeviceDetailPage : Pager() {
             vif({ this@DeviceDetailPage.hasValidLocation() }) {
                 Image {
                     attr {
-                        src(this@DeviceDetailPage.buildStaticMapUrl(this@DeviceDetailPage.currentLat, this@DeviceDetailPage.currentLon))
+                        src(this@DeviceDetailPage.buildGaodeTileUrl(this@DeviceDetailPage.currentLat, this@DeviceDetailPage.currentLon))
                         width(pagerData.pageViewWidth - 56f)
                         height(200f)
+                        resizeCover()
                         borderRadius(12f)
                         overflow(true)
                         marginTop(MdcTheme.Spacing.sm)
                     }
+                    event {
+                        loadSuccess {
+                            this@DeviceDetailPage.mapPreviewLoading = false
+                            this@DeviceDetailPage.mapPreviewFailed = false
+                        }
+                        loadFailure {
+                            this@DeviceDetailPage.mapPreviewLoading = false
+                            this@DeviceDetailPage.mapPreviewFailed = true
+                            CrashLogger.log(
+                                "DeviceDetail.mapPreview",
+                                "Gaode map tile failed to load: ${this@DeviceDetailPage.currentLat},${this@DeviceDetailPage.currentLon}"
+                            )
+                        }
+                    }
+                }
+                vif({ this@DeviceDetailPage.mapPreviewLoading }) {
+                    MdcCaption("Loading map preview...", MdcTheme.Colors.onSurfaceVariant)
+                }
+                vif({ this@DeviceDetailPage.mapPreviewFailed }) {
+                    MdcBodyText("Map preview unavailable", MdcTheme.Colors.error)
+                }
+                MdcOutlinedButton("Open Gaode map") {
+                    PlatformScanController.openDeviceMap(
+                        this@DeviceDetailPage.currentLat,
+                        this@DeviceDetailPage.currentLon,
+                        this@DeviceDetailPage.title
+                    )
                 }
             }
             vif({ !this@DeviceDetailPage.hasValidLocation() }) {
@@ -174,6 +212,7 @@ class DeviceDetailPage : Pager() {
     private fun hasValidLocation(): Boolean {
         if (currentLat.isNaN() || currentLat.isInfinite()) return false
         if (currentLon.isNaN() || currentLon.isInfinite()) return false
+        if (currentLat !in -90.0..90.0 || currentLon !in -180.0..180.0) return false
         return !(currentLat == 0.0 && currentLon == 0.0)
     }
 
@@ -199,10 +238,55 @@ class DeviceDetailPage : Pager() {
         return if (nearest != null) nearest.latitude to nearest.longitude else 0.0 to 0.0
     }
 
-    private fun buildStaticMapUrl(lat: Double, lon: Double): String {
-        val center = "$lat,$lon"
-        return "https://staticmap.openstreetmap.de/staticmap.php" +
-            "?center=$center&zoom=15&size=600x300&maptype=mapnik&markers=$center,red"
+    private fun buildGaodeTileUrl(lat: Double, lon: Double): String {
+        val (gaodeLat, gaodeLon) = toGaodeCoordinate(lat, lon)
+        val boundedLat = gaodeLat.coerceIn(-WEB_MERCATOR_MAX_LATITUDE, WEB_MERCATOR_MAX_LATITUDE)
+        val tileCount = 1 shl MAP_PREVIEW_ZOOM
+        val x = floor((gaodeLon + 180.0) / 360.0 * tileCount).toInt().coerceIn(0, tileCount - 1)
+        val latitudeRadians = boundedLat / 180.0 * PI
+        val y = floor(
+            (1.0 - ln(tan(latitudeRadians) + 1.0 / cos(latitudeRadians)) / PI) /
+                2.0 * tileCount
+        ).toInt().coerceIn(0, tileCount - 1)
+        val host = (kotlin.math.abs(x + y) % GAODE_HOST_COUNT) + 1
+        return "http://wprd0$host.is.autonavi.com/appmaptile" +
+            "?x=$x&y=$y&z=$MAP_PREVIEW_ZOOM&lang=zh_cn&size=1&scl=1&style=7"
+    }
+
+    private fun toGaodeCoordinate(latitude: Double, longitude: Double): Pair<Double, Double> {
+        if (longitude !in 72.004..137.8347 || latitude !in 0.8293..55.8271) {
+            return latitude to longitude
+        }
+
+        var latitudeOffset = transformLatitude(longitude - 105.0, latitude - 35.0)
+        var longitudeOffset = transformLongitude(longitude - 105.0, latitude - 35.0)
+        val latitudeRadians = latitude / 180.0 * PI
+        var magic = sin(latitudeRadians)
+        magic = 1 - GCJ_EARTH_ECCENTRICITY * magic * magic
+        val sqrtMagic = sqrt(magic)
+        latitudeOffset = latitudeOffset * 180.0 /
+            ((GCJ_EARTH_RADIUS * (1 - GCJ_EARTH_ECCENTRICITY)) / (magic * sqrtMagic) * PI)
+        longitudeOffset = longitudeOffset * 180.0 /
+            (GCJ_EARTH_RADIUS / sqrtMagic * cos(latitudeRadians) * PI)
+        return latitude + latitudeOffset to longitude + longitudeOffset
+    }
+
+    private fun transformLatitude(x: Double, y: Double): Double {
+        var result = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y +
+            0.1 * x * y + 0.2 * sqrt(abs(x))
+        result += (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0
+        result += (20.0 * sin(y * PI) + 40.0 * sin(y / 3.0 * PI)) * 2.0 / 3.0
+        result += (160.0 * sin(y / 12.0 * PI) + 320.0 * sin(y * PI / 30.0)) * 2.0 / 3.0
+        return result
+    }
+
+    private fun transformLongitude(x: Double, y: Double): Double {
+        var result = 300.0 + x + 2.0 * y + 0.1 * x * x +
+            0.1 * x * y + 0.1 * sqrt(abs(x))
+        result += (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0
+        result += (20.0 * sin(x * PI) + 40.0 * sin(x / 3.0 * PI)) * 2.0 / 3.0
+        result += (150.0 * sin(x / 12.0 * PI) + 300.0 * sin(x / 30.0 * PI)) * 2.0 / 3.0
+        return result
     }
 
     private fun loadDevice() {
@@ -257,9 +341,9 @@ class DeviceDetailPage : Pager() {
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
         val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
-        updateMapPreview(effLat, effLon, record.timestamp, locations)
         currentLat = effLat
         currentLon = effLon
+        updateMapPreview(effLat, effLon, record.timestamp, locations)
     }
 
     private fun renderBluetooth(record: BluetoothScanRecord?, locations: List<LocationRecord>) {
@@ -284,9 +368,9 @@ class DeviceDetailPage : Pager() {
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
         val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
-        updateMapPreview(effLat, effLon, record.timestamp, locations)
         currentLat = effLat
         currentLon = effLon
+        updateMapPreview(effLat, effLon, record.timestamp, locations)
     }
 
     private fun renderCell(record: CellScanRecord?, locations: List<LocationRecord>) {
@@ -314,9 +398,9 @@ class DeviceDetailPage : Pager() {
         ).joinToString("\n")
         locationText = buildLocationText(record.latitude, record.longitude, locations)
         val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
-        updateMapPreview(effLat, effLon, record.timestamp, locations)
         currentLat = effLat
         currentLon = effLon
+        updateMapPreview(effLat, effLon, record.timestamp, locations)
     }
 
     private fun buildLocationText(latitude: Double, longitude: Double, locations: List<LocationRecord>): String {
@@ -349,12 +433,15 @@ class DeviceDetailPage : Pager() {
     }
 
     private fun updateMapPreview(latitude: Double, longitude: Double, timestamp: Long, locations: List<LocationRecord>) {
+        mapPreviewLoading = false
+        mapPreviewFailed = false
         if (latitude.isNaN() || latitude.isInfinite() || longitude.isNaN() || longitude.isInfinite()) {
             mapCoordinateText = "Invalid coordinates"
             mapMetaText = "Last scan timestamp: $timestamp"
             nearbyText = "No valid location data"
             return
         }
+        mapPreviewLoading = true
         val nearby = locations.filter {
             !it.latitude.isNaN() && !it.latitude.isInfinite() &&
             !it.longitude.isNaN() && !it.longitude.isInfinite()
@@ -393,5 +480,13 @@ class DeviceDetailPage : Pager() {
         val sign = if (tenths < 0) "-" else ""
         val absolute = kotlin.math.abs(tenths)
         return "$sign${absolute / 10}.${absolute % 10}"
+    }
+
+    companion object {
+        private const val MAP_PREVIEW_ZOOM = 15
+        private const val GAODE_HOST_COUNT = 4
+        private const val WEB_MERCATOR_MAX_LATITUDE = 85.05112878
+        private const val GCJ_EARTH_RADIUS = 6378245.0
+        private const val GCJ_EARTH_ECCENTRICITY = 0.006693421622965943
     }
 }

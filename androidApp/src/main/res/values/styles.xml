@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ScanApp" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">#0D0F10</item>
+        <item name="android:statusBarColor">#0D0F10</item>
+        <item name="android:navigationBarColor">#0D0F10</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:colorAccent">#58C7F3</item>
+        <item name="colorAccent">#58C7F3</item>
+    </style>
+</resources>

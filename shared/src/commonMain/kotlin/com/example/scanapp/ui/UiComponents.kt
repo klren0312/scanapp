@@ -150,7 +150,6 @@ internal fun ViewContainer<*, *>.MdcNavigationDrawer(
             }
             MdcDrawerItem("Scanner", "Scanner", currentPage, onNavigate)
             MdcDrawerItem("Devices", "DeviceList", currentPage, onNavigate)
-            MdcDrawerItem("Statistics", "Statistics", currentPage, onNavigate)
             MdcDrawerItem("Map", "Map", currentPage, onNavigate)
             MdcDrawerItem("Logs", "Logs", currentPage, onNavigate)
             MdcDrawerItem("Settings", "Settings", currentPage, onNavigate)
@@ -224,6 +223,7 @@ internal fun ViewContainer<*, *>.MdcRecordColumn(
             padding(MdcTheme.Spacing.card)
             backgroundColor(MdcTheme.Colors.surface)
             borderRadius(12f)
+            border(Border(1f, BorderStyle.SOLID, MdcTheme.Colors.outline))
             boxShadow(MdcTheme.Elevation.level1)
             if (rightMargin) {
                 marginRight(MdcTheme.Spacing.sm)
@@ -389,6 +389,7 @@ internal fun ViewContainer<*, *>.MdcCard(
             padding(MdcTheme.Spacing.card)
             backgroundColor(MdcTheme.Colors.surface)
             borderRadius(12f)
+            border(Border(1f, BorderStyle.SOLID, MdcTheme.Colors.outline))
             boxShadow(elevation)
             marginTop(MdcTheme.Spacing.sm)
         }
@@ -411,6 +412,7 @@ internal fun ViewContainer<*, *>.MdcCardRow(
             padding(MdcTheme.Spacing.card)
             backgroundColor(MdcTheme.Colors.surface)
             borderRadius(12f)
+            border(Border(1f, BorderStyle.SOLID, MdcTheme.Colors.outline))
             boxShadow(elevation)
             marginTop(MdcTheme.Spacing.sm)
             alignItems(FlexAlign.CENTER)

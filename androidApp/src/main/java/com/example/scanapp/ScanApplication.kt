@@ -21,6 +21,10 @@ class ScanApplication : Application() {
         KuiklyRenderAdapterManager.krRouterAdapter = KRRouterAdapter
         KuiklyCoreEntry().triggerRegisterPages()
 
+        if (KuiklyRenderAdapterManager.krImageAdapter == null) {
+            KuiklyRenderAdapterManager.krImageAdapter = KRImageAdapter(this)
+        }
+
         if (KuiklyRenderAdapterManager.krLogAdapter == null) {
             KuiklyRenderAdapterManager.krLogAdapter = object : IKRLogAdapter {
                 override val asyncLogEnable: Boolean = false
