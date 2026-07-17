@@ -3,6 +3,8 @@
 
 ## 2026-07-17
 
+- Background BLE persistence now uses a bounded batch queue instead of launching one coroutine and transaction per advertisement. It flushes every 750 ms or 100 records, applies one location snapshot per batch, backs off after database failures, and drains pending records when the service stops.
+- Verification: `git diff --check` and targeted static searches passed. Gradle build/tests were not run per `agent.md`.
 - Performance review: bounded the list-diff matrix to prevent quadratic allocations, coalesced duplicate image requests, removed duplicate page loads and stale pagination updates, replaced per-advertisement Bluetooth full-table reloads with indexed updates, made map loads cancellation-safe, and bounded device-detail location processing.
 - Verification: `git diff --check` and targeted static searches passed. Gradle build/tests were not run per `agent.md`.
 - Switched the app to a dark theme across Kuikly and native Android surfaces, including dark system bars, higher-contrast cards, and updated WiFi/Bluetooth/Cell status colors.
