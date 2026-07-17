@@ -1,6 +1,16 @@
 ﻿# Changelog
 
 
+## 2026-07-17
+
+- Switched the app to a dark theme across Kuikly and native Android surfaces, including dark system bars, higher-contrast cards, and updated WiFi/Bluetooth/Cell status colors.
+- Replaced the native osmdroid Mapnik source with Gaode road-map tiles from `wprd01` through `wprd04.is.autonavi.com`. Added scoped cleartext HTTP access for `autonavi.com` and WGS-84 to GCJ-02 conversion so device markers align with the Gaode base map in China.
+- Restored the Device Detail map experience: registered a Kuikly Android image adapter, added map loading/failure states, switched the embedded preview to Gaode tiles, and retained the native interactive-map fallback. The native map now has a top-left Back button instead of the old navigation drawer.
+- Device List pagination and merged results now use `timestamp DESC` consistently for WiFi, Bluetooth, and Cell records, so the most recently scanned devices appear first instead of sorting by signal strength.
+- Removed the Statistics page, its page registration, and its navigation-drawer entry.
+- Settings now includes the Cell record count. CSV/JSON export and Clear All Data also include Cell records.
+- Verification: `./gradlew.bat :androidApp:assembleDebug` passed. `./gradlew.bat :shared:testDebugUnitTest` remains blocked by pre-existing test-source compilation errors (`JdbcSqliteDriver` missing, duplicate `DatabaseTest`, and outdated positional model constructors).
+
 - Fix compile error in DeviceListPage: the pre-existing MdcBodyText Loading more string literal was corrupted (mojibake) into an unterminated string, breaking the build. Restored to 'Loading more...'.
 
 
