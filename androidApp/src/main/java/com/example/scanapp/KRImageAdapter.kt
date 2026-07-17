@@ -24,6 +24,7 @@ internal class KRImageAdapter(context: Context) : IKRImageAdapter {
     private val bitmapCache = object : LruCache<String, Bitmap>(CACHE_BYTES) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
     }
+    private val pendingCallbacks = mutableMapOf<String, MutableList<(Drawable?) -> Unit>>()
 
     override val shouldWaitViewDidLoad: Boolean = false
 
@@ -39,12 +40,38 @@ internal class KRImageAdapter(context: Context) : IKRImageAdapter {
             return
         }
 
-        executor.execute {
-            val bitmap = runCatching { loadBitmap(imageLoadOption) }
-                .onFailure { Log.w(TAG, "Image load failed: $src", it) }
-                .getOrNull()
-            if (bitmap != null) bitmapCache.put(src, bitmap)
-            mainHandler.post {
+        val shouldLoad = synchronized(pendingCallbacks) {
+            val callbacks = pendingCallbacks[src]
+            if (callbacks != null) {
+                callbacks.add(callback)
+                false
+            } else {
+                pendingCallbacks[src] = mutableListOf(callback)
+                true
+            }
+        }
+        if (!shouldLoad) return
+
+        runCatching {
+            executor.execute {
+                val bitmap = runCatching { loadBitmap(imageLoadOption) }
+                    .onFailure { Log.w(TAG, "Image load failed: $src", it) }
+                    .getOrNull()
+                if (bitmap != null) bitmapCache.put(src, bitmap)
+                completeLoad(src, bitmap)
+            }
+        }.onFailure { error ->
+            Log.w(TAG, "Unable to schedule image load: $src", error)
+            completeLoad(src, null)
+        }
+    }
+
+    private fun completeLoad(src: String, bitmap: Bitmap?) {
+        val callbacks = synchronized(pendingCallbacks) {
+            pendingCallbacks.remove(src).orEmpty()
+        }
+        mainHandler.post {
+            callbacks.forEach { callback ->
                 callback(bitmap?.let { BitmapDrawable(appContext.resources, it) })
             }
         }

@@ -29,6 +29,7 @@ class SettingsPage : Pager() {
     private var totalCell by observable(0L)
     private var totalLocations by observable(0L)
     private var drawerOpen by observable(false)
+    private var hasAppeared = false
 
     override fun created() {
         super.created()
@@ -37,7 +38,11 @@ class SettingsPage : Pager() {
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        loadSummary()
+        if (hasAppeared) {
+            loadSummary()
+        } else {
+            hasAppeared = true
+        }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {

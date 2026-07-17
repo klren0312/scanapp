@@ -31,6 +31,7 @@ class ScannerPage : Pager() {
     private var cellHint by observable("")
     private var drawerOpen by observable(false)
     private var isPageActive = true
+    private var hasAppeared = false
 
     override fun created() {
         super.created()
@@ -45,7 +46,11 @@ class ScannerPage : Pager() {
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        refreshCounts()
+        if (hasAppeared) {
+            refreshCounts()
+        } else {
+            hasAppeared = true
+        }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {

@@ -56,6 +56,8 @@ class DeviceListPage : Pager() {
     private var displayRecords by observableList<DeviceItem>()
 
     private var isPageActive = true
+    private var hasAppeared = false
+    private var isInitialLoading = false
     private var loadToken = 0
     private val loadedItems = mutableListOf<DeviceItem>()
     private var loadedWifiCount = 0
@@ -67,7 +69,7 @@ class DeviceListPage : Pager() {
 
     override fun created() {
         super.created()
-        requestLoad("DeviceList.created") { loadInitial(it) }
+        requestInitialLoad("DeviceList.created")
     }
 
     override fun pageWillDestroy() {
@@ -78,7 +80,11 @@ class DeviceListPage : Pager() {
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        refresh()
+        if (hasAppeared) {
+            refresh()
+        } else {
+            hasAppeared = true
+        }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -205,12 +211,31 @@ class DeviceListPage : Pager() {
     }
 
     private fun refresh() {
-        requestLoad("DeviceList.refresh") { loadInitial(it) }
+        isLoadingMore = false
+        requestInitialLoad("DeviceList.refresh")
     }
 
     private fun requestLoadMore() {
-        if (isLoadingMore || !hasMore()) return
-        requestLoad("DeviceList.loadMore") { loadMore(it) }
+        if (isInitialLoading || isLoadingMore || !hasMore()) return
+        isLoadingMore = true
+        requestLoad("DeviceList.loadMore") { token ->
+            try {
+                loadMore(token)
+            } finally {
+                if (token == loadToken) isLoadingMore = false
+            }
+        }
+    }
+
+    private fun requestInitialLoad(tag: String) {
+        isInitialLoading = true
+        requestLoad(tag) { token ->
+            try {
+                loadInitial(token)
+            } finally {
+                if (token == loadToken) isInitialLoading = false
+            }
+        }
     }
 
     private fun requestLoad(tag: String, block: suspend (Int) -> Unit) {
@@ -228,20 +253,28 @@ class DeviceListPage : Pager() {
         val bluetoothDao = BluetoothScanDao(db)
         val cellDao = CellScanDao(db)
 
-        wifiTotal = wifiDao.getCount().toInt()
-        bluetoothTotal = bluetoothDao.getCount().toInt()
-        cellTotal = cellDao.getCount().toInt()
-        wifiDeviceCount = wifiTotal
-        bluetoothDeviceCount = bluetoothTotal
-        cellDeviceCount = cellTotal
-        cellHint = cellReadinessHint(cellTotal.toLong())
-        wifiSeenTotal = wifiDao.getSeenTotal().toInt()
-        bluetoothSeenTotal = bluetoothDao.getSeenTotal().toInt()
-        cellSeenTotal = cellDao.getSeenTotal().toInt()
+        val nextWifiTotal = wifiDao.getCount().toInt()
+        val nextBluetoothTotal = bluetoothDao.getCount().toInt()
+        val nextCellTotal = cellDao.getCount().toInt()
+        val nextWifiSeenTotal = wifiDao.getSeenTotal().toInt()
+        val nextBluetoothSeenTotal = bluetoothDao.getSeenTotal().toInt()
+        val nextCellSeenTotal = cellDao.getSeenTotal().toInt()
 
         val wifiPage = wifiDao.getRecordsPaginated(pageSize, 0)
         val bluetoothPage = bluetoothDao.getRecordsPaginated(pageSize, 0)
         val cellPage = cellDao.getRecordsPaginated(pageSize, 0)
+
+        if (!isPageActive || token != loadToken) return
+        wifiTotal = nextWifiTotal
+        bluetoothTotal = nextBluetoothTotal
+        cellTotal = nextCellTotal
+        wifiDeviceCount = nextWifiTotal
+        bluetoothDeviceCount = nextBluetoothTotal
+        cellDeviceCount = nextCellTotal
+        cellHint = cellReadinessHint(nextCellTotal.toLong())
+        wifiSeenTotal = nextWifiSeenTotal
+        bluetoothSeenTotal = nextBluetoothSeenTotal
+        cellSeenTotal = nextCellSeenTotal
         loadedWifiCount = wifiPage.size
         loadedBluetoothCount = bluetoothPage.size
         loadedCellCount = cellPage.size
@@ -251,48 +284,47 @@ class DeviceListPage : Pager() {
         loadedItems.addAll(bluetoothPage.map { it.toDeviceItem() })
         loadedItems.addAll(cellPage.map { it.toDeviceItem() })
 
-        if (!isPageActive || token != loadToken) return
         rebuildDisplay()
     }
 
     private suspend fun loadMore(token: Int) {
-        if (!isPageActive || !hasMore() || isLoadingMore) return
-        isLoadingMore = true
-        try {
-            val db = DatabaseFactory.getDatabase()
-            val wifiDao = WifiScanDao(db)
-            val bluetoothDao = BluetoothScanDao(db)
-            val cellDao = CellScanDao(db)
+        if (!isPageActive || !hasMore()) return
+        val wifiOffset = loadedWifiCount
+        val bluetoothOffset = loadedBluetoothCount
+        val cellOffset = loadedCellCount
+        val wifiLimit = wifiTotal
+        val bluetoothLimit = bluetoothTotal
+        val cellLimit = cellTotal
+        val db = DatabaseFactory.getDatabase()
+        val wifiDao = WifiScanDao(db)
+        val bluetoothDao = BluetoothScanDao(db)
+        val cellDao = CellScanDao(db)
 
-            val wifiPage = if (loadedWifiCount < wifiTotal) {
-                wifiDao.getRecordsPaginated(pageSize, loadedWifiCount)
-            } else {
-                emptyList()
-            }
-            val bluetoothPage = if (loadedBluetoothCount < bluetoothTotal) {
-                bluetoothDao.getRecordsPaginated(pageSize, loadedBluetoothCount)
-            } else {
-                emptyList()
-            }
-            val cellPage = if (loadedCellCount < cellTotal) {
-                cellDao.getRecordsPaginated(pageSize, loadedCellCount)
-            } else {
-                emptyList()
-            }
-
-            loadedWifiCount += wifiPage.size
-            loadedBluetoothCount += bluetoothPage.size
-            loadedCellCount += cellPage.size
-            cellHint = cellReadinessHint(cellTotal.toLong())
-            loadedItems.addAll(wifiPage.map { it.toDeviceItem() })
-            loadedItems.addAll(bluetoothPage.map { it.toDeviceItem() })
-            loadedItems.addAll(cellPage.map { it.toDeviceItem() })
-
-            if (!isPageActive || token != loadToken) return
-            rebuildDisplay()
-        } finally {
-            isLoadingMore = false
+        val wifiPage = if (wifiOffset < wifiLimit) {
+            wifiDao.getRecordsPaginated(pageSize, wifiOffset)
+        } else {
+            emptyList()
         }
+        val bluetoothPage = if (bluetoothOffset < bluetoothLimit) {
+            bluetoothDao.getRecordsPaginated(pageSize, bluetoothOffset)
+        } else {
+            emptyList()
+        }
+        val cellPage = if (cellOffset < cellLimit) {
+            cellDao.getRecordsPaginated(pageSize, cellOffset)
+        } else {
+            emptyList()
+        }
+
+        if (!isPageActive || token != loadToken) return
+        loadedWifiCount += wifiPage.size
+        loadedBluetoothCount += bluetoothPage.size
+        loadedCellCount += cellPage.size
+        cellHint = cellReadinessHint(cellTotal.toLong())
+        loadedItems.addAll(wifiPage.map { it.toDeviceItem() })
+        loadedItems.addAll(bluetoothPage.map { it.toDeviceItem() })
+        loadedItems.addAll(cellPage.map { it.toDeviceItem() })
+        rebuildDisplay()
     }
 
 

@@ -3,6 +3,8 @@
 
 ## 2026-07-17
 
+- Performance review: bounded the list-diff matrix to prevent quadratic allocations, coalesced duplicate image requests, removed duplicate page loads and stale pagination updates, replaced per-advertisement Bluetooth full-table reloads with indexed updates, made map loads cancellation-safe, and bounded device-detail location processing.
+- Verification: `git diff --check` and targeted static searches passed. Gradle build/tests were not run per `agent.md`.
 - Switched the app to a dark theme across Kuikly and native Android surfaces, including dark system bars, higher-contrast cards, and updated WiFi/Bluetooth/Cell status colors.
 - Replaced the native osmdroid Mapnik source with Gaode road-map tiles from `wprd01` through `wprd04.is.autonavi.com`. Added scoped cleartext HTTP access for `autonavi.com` and WGS-84 to GCJ-02 conversion so device markers align with the Gaode base map in China.
 - Restored the Device Detail map experience: registered a Kuikly Android image adapter, added map loading/failure states, switched the embedded preview to Gaode tiles, and retained the native interactive-map fallback. The native map now has a top-left Back button instead of the old navigation drawer.

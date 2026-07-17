@@ -17,12 +17,12 @@ import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.util.BoundingBox
@@ -39,7 +39,7 @@ class OsmMapActivity : AppCompatActivity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var mapView: MapView
     private lateinit var statusView: TextView
-    private var pollingJob: Job? = null
+    private var loadJob: Job? = null
     private var showingSinglePoint = false
 
     private val backgroundColor = 0xFF0D0F10.toInt()
@@ -178,29 +178,27 @@ class OsmMapActivity : AppCompatActivity() {
     }
 
     private fun startPolling() {
-        if (pollingJob?.isActive == true) return
-        pollingJob = scope.launch {
+        if (loadJob?.isActive == true) return
+        loadJob = scope.launch {
             loadDevices()
         }
     }
 
     private fun stopPolling() {
-        pollingJob?.cancel()
-        pollingJob = null
+        loadJob?.cancel()
+        loadJob = null
     }
 
-    private fun loadDevices() {
-        scope.launch {
-            runCatching {
-                val db = withContext(Dispatchers.IO) { DatabaseFactory.getDatabase() }
-                val wifi = withContext(Dispatchers.IO) { WifiScanDao(db).getAllRecords() }
-                val bluetooth = withContext(Dispatchers.IO) { BluetoothScanDao(db).getAllRecords() }
-                wifi to bluetooth
-            }.onSuccess { (wifi, bluetooth) ->
-                renderDevices(wifi, bluetooth)
-            }.onFailure { error ->
-                statusView.text = "Failed to load devices: ${error.message ?: "unknown error"}"
-            }
+    private suspend fun loadDevices() {
+        try {
+            val db = DatabaseFactory.getDatabase()
+            val wifi = WifiScanDao(db).getAllRecords()
+            val bluetooth = BluetoothScanDao(db).getAllRecords()
+            renderDevices(wifi, bluetooth)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            statusView.text = "Failed to load devices: ${error.message ?: "unknown error"}"
         }
     }
 

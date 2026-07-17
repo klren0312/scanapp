@@ -25,6 +25,7 @@ import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -217,7 +218,7 @@ class DeviceDetailPage : Pager() {
     }
 
     // Prefer the device record's own coordinates; if they are missing/invalid, fall back
-    // to the nearest stored location sample so the map can still be shown.
+    // to the latest valid stored location sample so the map can still be shown.
     private fun resolveLocation(
         recordLat: Double,
         recordLon: Double,
@@ -228,14 +229,8 @@ class DeviceDetailPage : Pager() {
             (recordLat == 0.0 && recordLon == 0.0))
         if (recordValid) return recordLat to recordLon
 
-        val nearest = locations
-            .filter {
-                !it.latitude.isNaN() && !it.latitude.isInfinite() &&
-                    !it.longitude.isNaN() && !it.longitude.isInfinite() &&
-                    !(it.latitude == 0.0 && it.longitude == 0.0)
-            }
-            .minByOrNull { abs(it.latitude - recordLat) + abs(it.longitude - recordLon) }
-        return if (nearest != null) nearest.latitude to nearest.longitude else 0.0 to 0.0
+        val latest = locations.firstOrNull(::hasValidLocation)
+        return if (latest != null) latest.latitude to latest.longitude else 0.0 to 0.0
     }
 
     private fun buildGaodeTileUrl(lat: Double, lon: Double): String {
@@ -293,10 +288,10 @@ class DeviceDetailPage : Pager() {
         val deviceType = pagerData.params.optString("deviceType")
         val deviceKey = pagerData.params.optString("deviceKey")
         safeLaunch("DeviceDetail.loadDevice") {
-            runCatching {
+            try {
                 val db = DatabaseFactory.getDatabase()
-                val locations = LocationDao(db).getAllRecords()
-                if (!isPageActive) return@runCatching
+                val locations = LocationDao(db).getRecordsPaginated(LOCATION_SAMPLE_LIMIT, 0)
+                if (!isPageActive) return@safeLaunch
                 if (deviceType == "wifi") {
                     val record = WifiScanDao(db).getRecordByBssid(deviceKey)
                     if (isPageActive) renderWifi(record, locations)
@@ -307,14 +302,16 @@ class DeviceDetailPage : Pager() {
                     val record = BluetoothScanDao(db).getRecordByAddress(deviceKey)
                     if (isPageActive) renderBluetooth(record, locations)
                 }
-            }.onFailure {
-                if (!isPageActive) return@onFailure
-                detailText = "Failed to load device: ${it.message}"
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (!isPageActive) return@safeLaunch
+                detailText = "Failed to load device: ${error.message}"
                 locationText = "No location data"
                 mapCoordinateText = "No coordinates"
                 mapMetaText = "Map data unavailable"
                 nearbyText = "No nearby locations"
-                CrashLogger.log("DeviceDetail.loadDevice", it)
+                CrashLogger.log("DeviceDetail.loadDevice", error)
             }
         }
     }
@@ -339,11 +336,12 @@ class DeviceDetailPage : Pager() {
             "Seen: ${record.count} times",
             "Last timestamp: ${record.timestamp}"
         ).joinToString("\n")
-        locationText = buildLocationText(record.latitude, record.longitude, locations)
         val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
+        val nearby = findNearestLocations(effLat, effLon, locations)
+        locationText = buildLocationText(record.latitude, record.longitude, nearby)
         currentLat = effLat
         currentLon = effLon
-        updateMapPreview(effLat, effLon, record.timestamp, locations)
+        updateMapPreview(effLat, effLon, record.timestamp, nearby)
     }
 
     private fun renderBluetooth(record: BluetoothScanRecord?, locations: List<LocationRecord>) {
@@ -366,11 +364,12 @@ class DeviceDetailPage : Pager() {
             "Seen: ${record.count} times",
             "Last timestamp: ${record.timestamp}"
         ).joinToString("\n")
-        locationText = buildLocationText(record.latitude, record.longitude, locations)
         val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
+        val nearby = findNearestLocations(effLat, effLon, locations)
+        locationText = buildLocationText(record.latitude, record.longitude, nearby)
         currentLat = effLat
         currentLon = effLon
-        updateMapPreview(effLat, effLon, record.timestamp, locations)
+        updateMapPreview(effLat, effLon, record.timestamp, nearby)
     }
 
     private fun renderCell(record: CellScanRecord?, locations: List<LocationRecord>) {
@@ -396,23 +395,18 @@ class DeviceDetailPage : Pager() {
             "Seen: ${record.count} times",
             "Last timestamp: ${record.timestamp}"
         ).joinToString("\n")
-        locationText = buildLocationText(record.latitude, record.longitude, locations)
         val (effLat, effLon) = resolveLocation(record.latitude, record.longitude, locations)
+        val nearby = findNearestLocations(effLat, effLon, locations)
+        locationText = buildLocationText(record.latitude, record.longitude, nearby)
         currentLat = effLat
         currentLon = effLon
-        updateMapPreview(effLat, effLon, record.timestamp, locations)
+        updateMapPreview(effLat, effLon, record.timestamp, nearby)
     }
 
-    private fun buildLocationText(latitude: Double, longitude: Double, locations: List<LocationRecord>): String {
+    private fun buildLocationText(latitude: Double, longitude: Double, nearby: List<LocationRecord>): String {
         if (latitude.isNaN() || latitude.isInfinite() || longitude.isNaN() || longitude.isInfinite()) {
             return "Invalid coordinates"
         }
-        val nearby = locations.filter {
-            !it.latitude.isNaN() && !it.latitude.isInfinite() &&
-            !it.longitude.isNaN() && !it.longitude.isInfinite()
-        }.sortedBy {
-            abs(it.latitude - latitude) + abs(it.longitude - longitude)
-        }.take(3)
         val base = mutableListOf(
             "Last scan latitude: ${formatCoordinate(latitude)}",
             "Last scan longitude: ${formatCoordinate(longitude)}"
@@ -432,7 +426,12 @@ class DeviceDetailPage : Pager() {
         return base.joinToString("\n")
     }
 
-    private fun updateMapPreview(latitude: Double, longitude: Double, timestamp: Long, locations: List<LocationRecord>) {
+    private fun updateMapPreview(
+        latitude: Double,
+        longitude: Double,
+        timestamp: Long,
+        nearby: List<LocationRecord>
+    ) {
         mapPreviewLoading = false
         mapPreviewFailed = false
         if (latitude.isNaN() || latitude.isInfinite() || longitude.isNaN() || longitude.isInfinite()) {
@@ -442,12 +441,6 @@ class DeviceDetailPage : Pager() {
             return
         }
         mapPreviewLoading = true
-        val nearby = locations.filter {
-            !it.latitude.isNaN() && !it.latitude.isInfinite() &&
-            !it.longitude.isNaN() && !it.longitude.isInfinite()
-        }.sortedBy {
-            abs(it.latitude - latitude) + abs(it.longitude - longitude)
-        }.take(3)
         mapCoordinateText = "${formatCoordinate(latitude)}, ${formatCoordinate(longitude)}"
         mapMetaText = "Last scan timestamp: $timestamp"
         nearbyText = if (nearby.isEmpty()) {
@@ -458,6 +451,36 @@ class DeviceDetailPage : Pager() {
                     "accuracy ${formatOneDecimal(record.accuracy.toDouble())} m"
             }.joinToString("\n")
         }
+    }
+
+    private fun findNearestLocations(
+        latitude: Double,
+        longitude: Double,
+        locations: List<LocationRecord>
+    ): List<LocationRecord> {
+        if (latitude.isNaN() || latitude.isInfinite() || longitude.isNaN() || longitude.isInfinite()) {
+            return emptyList()
+        }
+
+        val nearest = mutableListOf<Pair<Double, LocationRecord>>()
+        locations.forEach { record ->
+            if (!hasValidLocation(record)) return@forEach
+            val distance = abs(record.latitude - latitude) + abs(record.longitude - longitude)
+            val insertionIndex = nearest.indexOfFirst { distance < it.first }
+            if (insertionIndex >= 0) {
+                nearest.add(insertionIndex, distance to record)
+            } else if (nearest.size < NEARBY_LOCATION_LIMIT) {
+                nearest.add(distance to record)
+            }
+            if (nearest.size > NEARBY_LOCATION_LIMIT) nearest.removeAt(NEARBY_LOCATION_LIMIT)
+        }
+        return nearest.map { it.second }
+    }
+
+    private fun hasValidLocation(record: LocationRecord): Boolean {
+        return !record.latitude.isNaN() && !record.latitude.isInfinite() &&
+            !record.longitude.isNaN() && !record.longitude.isInfinite() &&
+            !(record.latitude == 0.0 && record.longitude == 0.0)
     }
 
     private fun closePage() {
@@ -484,6 +507,8 @@ class DeviceDetailPage : Pager() {
 
     companion object {
         private const val MAP_PREVIEW_ZOOM = 15
+        private const val NEARBY_LOCATION_LIMIT = 3
+        private const val LOCATION_SAMPLE_LIMIT = 500
         private const val GAODE_HOST_COUNT = 4
         private const val WEB_MERCATOR_MAX_LATITUDE = 85.05112878
         private const val GCJ_EARTH_RADIUS = 6378245.0

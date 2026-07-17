@@ -97,7 +97,7 @@ class BackgroundScanService : Service() {
                                 )
                                 val database = DatabaseFactory.getDatabase()
                                 val bluetoothDao = BluetoothScanDao(database)
-                                bluetoothDao.insertBatch(listOf(recordWithLocation))
+                                bluetoothDao.insertOrUpdate(recordWithLocation)
                             } catch (e: Exception) {
                                 val msg = "Bluetooth save error: ${e.message}"
                                 android.util.Log.e("BackgroundScanService", msg)

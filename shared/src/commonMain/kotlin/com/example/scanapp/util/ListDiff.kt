@@ -22,11 +22,34 @@ fun <T : Any> MutableList<T>.diffUpdate(
 
     val n = this.size
     val m = newList.size
+    var prefixSize = 0
+    while (prefixSize < n && prefixSize < m && equals(this[prefixSize], newList[prefixSize])) {
+        prefixSize++
+    }
 
-    val dp = Array(n + 1) { IntArray(m + 1) }
-    for (i in n - 1 downTo 0) {
-        for (j in m - 1 downTo 0) {
-            dp[i][j] = if (equals(this[i], newList[j])) {
+    var suffixSize = 0
+    while (
+        suffixSize < n - prefixSize &&
+        suffixSize < m - prefixSize &&
+        equals(this[n - suffixSize - 1], newList[m - suffixSize - 1])
+    ) {
+        suffixSize++
+    }
+
+    val oldMiddleSize = n - prefixSize - suffixSize
+    val newMiddleSize = m - prefixSize - suffixSize
+    if (oldMiddleSize == 0 && newMiddleSize == 0) return
+
+    if (oldMiddleSize.toLong() * newMiddleSize > MAX_DIFF_MATRIX_CELLS) {
+        repeat(oldMiddleSize) { removeAt(prefixSize) }
+        repeat(newMiddleSize) { offset -> add(prefixSize + offset, newList[prefixSize + offset]) }
+        return
+    }
+
+    val dp = Array(oldMiddleSize + 1) { IntArray(newMiddleSize + 1) }
+    for (i in oldMiddleSize - 1 downTo 0) {
+        for (j in newMiddleSize - 1 downTo 0) {
+            dp[i][j] = if (equals(this[prefixSize + i], newList[prefixSize + j])) {
                 dp[i + 1][j + 1] + 1
             } else {
                 maxOf(dp[i + 1][j], dp[i][j + 1])
@@ -37,8 +60,8 @@ fun <T : Any> MutableList<T>.diffUpdate(
     val ops = mutableListOf<Pair<DiffOp, T?>>()
     var i = 0
     var j = 0
-    while (i < n && j < m) {
-        if (equals(this[i], newList[j])) {
+    while (i < oldMiddleSize && j < newMiddleSize) {
+        if (equals(this[prefixSize + i], newList[prefixSize + j])) {
             ops.add(DiffOp.KEEP to null)
             i++
             j++
@@ -46,20 +69,20 @@ fun <T : Any> MutableList<T>.diffUpdate(
             ops.add(DiffOp.DELETE to null)
             i++
         } else {
-            ops.add(DiffOp.INSERT to newList[j])
+            ops.add(DiffOp.INSERT to newList[prefixSize + j])
             j++
         }
     }
-    while (i < n) {
+    while (i < oldMiddleSize) {
         ops.add(DiffOp.DELETE to null)
         i++
     }
-    while (j < m) {
-        ops.add(DiffOp.INSERT to newList[j])
+    while (j < newMiddleSize) {
+        ops.add(DiffOp.INSERT to newList[prefixSize + j])
         j++
     }
 
-    var pos = 0
+    var pos = prefixSize
     for ((kind, value) in ops) {
         when (kind) {
             DiffOp.KEEP -> pos++
@@ -71,3 +94,5 @@ fun <T : Any> MutableList<T>.diffUpdate(
         }
     }
 }
+
+private const val MAX_DIFF_MATRIX_CELLS = 250_000L
