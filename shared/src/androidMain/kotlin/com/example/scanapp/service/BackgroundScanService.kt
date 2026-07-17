@@ -43,7 +43,6 @@ class BackgroundScanService : Service() {
     private lateinit var bluetoothScanner: AndroidBluetoothScanner
     private lateinit var cellScanner: AndroidCellScanner
     private lateinit var locationTracker: AndroidLocationTracker
-    private val bluetoothDao by lazy { BluetoothScanDao(DatabaseFactory.getDatabase()) }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanningJob: Job? = null
     private var bluetoothStartJob: Job? = null
@@ -228,7 +227,8 @@ class BackgroundScanService : Service() {
                 val recordsWithLocation = batch.map { record ->
                     record.copy(latitude = latitude, longitude = longitude)
                 }
-                bluetoothDao.insertBatch(recordsWithLocation)
+                val database = DatabaseFactory.getDatabase()
+                BluetoothScanDao(database).insertBatch(recordsWithLocation)
             }
             true
         } catch (error: Exception) {
