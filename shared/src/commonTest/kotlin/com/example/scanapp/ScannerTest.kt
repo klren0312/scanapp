@@ -1,6 +1,7 @@
 package com.example.scanapp
 
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.service.ExportServiceImpl
@@ -24,6 +25,7 @@ class ScannerTest {
         val csv = exportService.exportToCsv(emptyList(), emptyList(), emptyList())
         assertTrue(csv.contains("WiFi Records"))
         assertTrue(csv.contains("Bluetooth Records"))
+        assertTrue(csv.contains("Cell Records"))
         assertTrue(csv.contains("Location Records"))
         assertTrue(csv.contains("SSID,BSSID,Signal Strength,Frequency,Timestamp,Latitude,Longitude,Count"))
         assertTrue(csv.contains("Name,Address,RSSI,Device Type,Timestamp,Latitude,Longitude,Count"))
@@ -68,6 +70,27 @@ class ScannerTest {
         assertTrue(csv.contains("50.0"))
         assertTrue(csv.contains("10.0"))
         assertTrue(csv.contains("1000"))
+    }
+
+    @Test
+    fun exportToCsv_cellRecords_includesData() = runBlocking {
+        val cell = CellScanRecord(
+            cellKey = "LTE:460:00:100:200",
+            networkType = "LTE",
+            operator = "China Mobile",
+            mcc = 460,
+            mnc = 0,
+            lac = 100,
+            cid = 200,
+            signalStrength = -95,
+            timestamp = 1000L,
+            latitude = 39.9,
+            longitude = 116.4,
+            count = 2
+        )
+        val csv = exportService.exportToCsv(emptyList(), emptyList(), emptyList(), listOf(cell))
+        assertTrue(csv.contains("Cell Records"))
+        assertTrue(csv.contains("LTE,China Mobile,460,0,100,200,-95,1000,39.9,116.4,2"))
     }
 
     @Test
@@ -117,6 +140,7 @@ class ScannerTest {
         val root = Json.parseToJsonElement(json).jsonObject
         assertEquals(0, root["wifiRecords"]!!.jsonArray.size)
         assertEquals(0, root["bluetoothRecords"]!!.jsonArray.size)
+        assertEquals(0, root["cellRecords"]!!.jsonArray.size)
         assertEquals(0, root["locationRecords"]!!.jsonArray.size)
     }
 

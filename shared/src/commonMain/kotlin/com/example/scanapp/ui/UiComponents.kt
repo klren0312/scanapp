@@ -120,6 +120,7 @@ internal fun ViewContainer<*, *>.MdcMenuTopBar(
 
 internal fun ViewContainer<*, *>.MdcNavigationDrawer(
     currentPage: String,
+    pageHeight: Float,
     onClose: () -> Unit,
     onNavigate: (String) -> Unit
 ) {
@@ -133,7 +134,7 @@ internal fun ViewContainer<*, *>.MdcNavigationDrawer(
         }
         View {
             attr {
-                width(280f)
+                size(280f, pageHeight)
                 backgroundColor(MdcTheme.Colors.surface)
                 padding(MdcTheme.Spacing.md)
                 boxShadow(MdcTheme.Elevation.level3)
@@ -149,8 +150,8 @@ internal fun ViewContainer<*, *>.MdcNavigationDrawer(
             }
             MdcDrawerItem("Scanner", "Scanner", currentPage, onNavigate)
             MdcDrawerItem("Devices", "DeviceList", currentPage, onNavigate)
-            MdcDrawerItem("Statistics", "Statistics", currentPage, onNavigate)
             MdcDrawerItem("Map", "Map", currentPage, onNavigate)
+            MdcDrawerItem("Logs", "Logs", currentPage, onNavigate)
             MdcDrawerItem("Settings", "Settings", currentPage, onNavigate)
         }
         View {
@@ -167,12 +168,14 @@ internal fun ViewContainer<*, *>.MdcNavigationDrawer(
 internal fun ViewContainer<*, *>.MdcNavigationDrawerHost(
     isOpen: () -> Boolean,
     currentPage: () -> String,
+    pageHeight: Float,
     onClose: () -> Unit,
     onNavigate: (String) -> Unit
 ) {
     vif({ isOpen() }) {
         MdcNavigationDrawer(
             currentPage = currentPage(),
+            pageHeight = pageHeight,
             onClose = onClose,
             onNavigate = onNavigate
         )
@@ -220,6 +223,7 @@ internal fun ViewContainer<*, *>.MdcRecordColumn(
             padding(MdcTheme.Spacing.card)
             backgroundColor(MdcTheme.Colors.surface)
             borderRadius(12f)
+            border(Border(1f, BorderStyle.SOLID, MdcTheme.Colors.outline))
             boxShadow(MdcTheme.Elevation.level1)
             if (rightMargin) {
                 marginRight(MdcTheme.Spacing.sm)
@@ -251,16 +255,31 @@ internal fun ViewContainer<*, *>.MdcDeviceCard(
     primaryMetric: String,
     secondaryMetric: String,
     count: Int,
+    scanTime: String = "",
     color: Color,
+    tag: String = "",
+    tagColor: Color = MdcTheme.Colors.secondary,
     onClick: () -> Unit
 ) {
     MdcCard(onClick = onClick) {
-        Text {
+        View {
             attr {
-                text(title)
-                fontSize(MdcTheme.Typography.bodyLarge)
-                fontWeightSemiBold()
-                color(MdcTheme.Colors.onSurface)
+                flexDirection(FlexDirection.ROW)
+                alignItems(FlexAlign.CENTER)
+                justifyContent(FlexJustifyContent.SPACE_BETWEEN)
+            }
+            Text {
+                attr {
+                    text(title)
+                    fontSize(MdcTheme.Typography.bodyLarge)
+                    fontWeightSemiBold()
+                    color(MdcTheme.Colors.onSurface)
+                    flex(1f)
+                    marginRight(MdcTheme.Spacing.sm)
+                }
+            }
+            if (tag.isNotEmpty()) {
+                MdcTag(tag, tagColor)
             }
         }
         Text {
@@ -282,6 +301,30 @@ internal fun ViewContainer<*, *>.MdcDeviceCard(
             MdcCaption(secondaryMetric)
         }
         MdcCaption("Seen $count times", MdcTheme.Colors.secondary)
+        if (scanTime.isNotEmpty()) {
+            MdcCaption("Last scanned $scanTime", MdcTheme.Colors.onSurfaceVariant)
+        }
+    }
+}
+
+internal fun ViewContainer<*, *>.MdcTag(
+    text: String,
+    color: Color
+) {
+    View {
+        attr {
+            padding(left = 8f, right = 8f, top = 3f, bottom = 3f)
+            backgroundColor(MdcTheme.Colors.surfaceVariant)
+            borderRadius(10f)
+        }
+        Text {
+            attr {
+                text(text)
+                fontSize(MdcTheme.Typography.labelSmall)
+                fontWeightMedium()
+                color(color)
+            }
+        }
     }
 }
 
@@ -346,6 +389,7 @@ internal fun ViewContainer<*, *>.MdcCard(
             padding(MdcTheme.Spacing.card)
             backgroundColor(MdcTheme.Colors.surface)
             borderRadius(12f)
+            border(Border(1f, BorderStyle.SOLID, MdcTheme.Colors.outline))
             boxShadow(elevation)
             marginTop(MdcTheme.Spacing.sm)
         }
@@ -368,6 +412,7 @@ internal fun ViewContainer<*, *>.MdcCardRow(
             padding(MdcTheme.Spacing.card)
             backgroundColor(MdcTheme.Colors.surface)
             borderRadius(12f)
+            border(Border(1f, BorderStyle.SOLID, MdcTheme.Colors.outline))
             boxShadow(elevation)
             marginTop(MdcTheme.Spacing.sm)
             alignItems(FlexAlign.CENTER)
@@ -506,6 +551,7 @@ internal fun ViewContainer<*, *>.MdcListItem(
             flexDirection(FlexDirection.ROW)
             justifyContent(FlexJustifyContent.SPACE_BETWEEN)
             alignItems(FlexAlign.CENTER)
+            minHeight(56f)
             padding(top = MdcTheme.Spacing.sm + 2f, bottom = MdcTheme.Spacing.sm + 2f)
         }
         View {
@@ -520,6 +566,8 @@ internal fun ViewContainer<*, *>.MdcListItem(
                     fontSize(MdcTheme.Typography.bodyLarge)
                     fontWeightMedium()
                     color(MdcTheme.Colors.onSurface)
+                    lines(1)
+                    textOverFlowTail()
                 }
             }
             if (subtitle.isNotEmpty()) {
@@ -529,6 +577,8 @@ internal fun ViewContainer<*, *>.MdcListItem(
                         fontSize(MdcTheme.Typography.bodySmall)
                         color(MdcTheme.Colors.onSurfaceVariant)
                         marginTop(2f)
+                        lines(1)
+                        textOverFlowTail()
                     }
                 }
             }
@@ -537,9 +587,11 @@ internal fun ViewContainer<*, *>.MdcListItem(
             Text {
                 attr {
                     text(trailing)
+                    width(80f)
                     fontSize(MdcTheme.Typography.bodyMedium)
                     color(trailingColor)
                     fontWeightMedium()
+                    textAlignRight()
                 }
             }
         }
@@ -567,15 +619,15 @@ internal fun ViewContainer<*, *>.MdcDivider() {
 
 internal fun ViewContainer<*, *>.MdcTab(
     label: String,
-    selected: Boolean,
+    selected: () -> Boolean,
     onClick: () -> Unit
 ) {
     View {
         attr {
             padding(top = MdcTheme.Spacing.sm, bottom = MdcTheme.Spacing.sm, left = MdcTheme.Spacing.md + 4f, right = MdcTheme.Spacing.md + 4f)
-            backgroundColor(if (selected) MdcTheme.Colors.primaryContainer else Color.TRANSPARENT)
+            backgroundColor(if (selected()) MdcTheme.Colors.primaryContainer else Color.TRANSPARENT)
             borderRadius(20f)
-            marginLeft(if (selected) 0f else MdcTheme.Spacing.xs)
+            marginRight(MdcTheme.Spacing.xs)
             alignItems(FlexAlign.CENTER)
             justifyContent(FlexJustifyContent.CENTER)
         }
@@ -587,7 +639,7 @@ internal fun ViewContainer<*, *>.MdcTab(
                 text(label)
                 fontSize(MdcTheme.Typography.labelLarge)
                 fontWeightSemiBold()
-                color(if (selected) MdcTheme.Colors.onPrimaryContainer else MdcTheme.Colors.onSurfaceVariant)
+                color(if (selected()) MdcTheme.Colors.onPrimaryContainer else MdcTheme.Colors.onSurfaceVariant)
             }
         }
     }

@@ -1,22 +1,22 @@
-package com.example.scanapp.ui
+﻿package com.example.scanapp.ui
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
-import com.example.scanapp.models.BluetoothScanRecord
-import com.example.scanapp.models.WifiScanRecord
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.service.PlatformScanController
+import com.example.scanapp.service.cellReadinessHint
+import com.example.scanapp.service.requestCellScanPermission
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.delay
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
@@ -27,13 +27,30 @@ class ScannerPage : Pager() {
     private var scanStatus by observable("")
     private var wifiCount by observable(0L)
     private var bluetoothCount by observable(0L)
-    private var recentWifiText by observable("No WiFi records")
-    private var recentBluetoothText by observable("No Bluetooth records")
+    private var cellCount by observable(0L)
+    private var cellHint by observable("")
     private var drawerOpen by observable(false)
+    private var isPageActive = true
+    private var hasAppeared = false
 
     override fun created() {
         super.created()
-        refreshData()
+        refreshCounts()
+    }
+
+    override fun pageWillDestroy() {
+        isPageActive = false
+        isScanning = false
+        super.pageWillDestroy()
+    }
+
+    override fun pageDidAppear() {
+        super.pageDidAppear()
+        if (hasAppeared) {
+            refreshCounts()
+        } else {
+            hasAppeared = true
+        }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -45,11 +62,12 @@ class ScannerPage : Pager() {
                 padding(MdcTheme.Spacing.md)
             }
 
-            MdcMenuTopBar("WiFi / Bluetooth Scanner") { this@ScannerPage.drawerOpen = true }
+            MdcMenuTopBar("Scanner") { this@ScannerPage.drawerOpen = true }
 
             MdcCardRow {
-                MdcStatBadge("WiFi Networks", { "${this@ScannerPage.wifiCount}" }, MdcTheme.Colors.wifi)
+                MdcStatBadge("WiFi", { "${this@ScannerPage.wifiCount}" }, MdcTheme.Colors.wifi)
                 MdcStatBadge("Bluetooth", { "${this@ScannerPage.bluetoothCount}" }, MdcTheme.Colors.bluetooth)
+                MdcStatBadge("Cell", { "${this@ScannerPage.cellCount}" }, MdcTheme.Colors.cell)
             }
 
             View {
@@ -90,8 +108,9 @@ class ScannerPage : Pager() {
                 attr {
                     val message = when {
                         this@ScannerPage.scanStatus.isNotEmpty() -> this@ScannerPage.scanStatus
-                        this@ScannerPage.isScanning -> "Scanning..."
-                        else -> ""
+                        this@ScannerPage.isScanning && this@ScannerPage.cellHint.isNotEmpty() -> this@ScannerPage.cellHint
+                        this@ScannerPage.isScanning -> "Scanning... counts refresh every few seconds"
+                        else -> "Device details are available in the Device List page"
                     }
                     text(message)
                     fontSize(MdcTheme.Typography.bodyLarge)
@@ -100,24 +119,83 @@ class ScannerPage : Pager() {
                 }
             }
 
-            MdcSectionHeader("Recent Scans")
-            Scroller {
+            vif({ this@ScannerPage.isScanning && this@ScannerPage.cellHint.contains("location permission") }) {
+                View {
+                    attr {
+                        marginTop(MdcTheme.Spacing.sm)
+                        padding(top = 10f, bottom = 10f, left = 14f, right = 14f)
+                        backgroundColor(MdcTheme.Colors.primary)
+                        borderRadius(16f)
+                        alignItems(FlexAlign.CENTER)
+                        justifyContent(FlexJustifyContent.CENTER)
+                    }
+                    event {
+                        click { this@ScannerPage.requestCellPermission() }
+                    }
+                    Text {
+                        attr {
+                            text("Grant location permission")
+                            fontSize(MdcTheme.Typography.labelLarge)
+                            fontWeightSemiBold()
+                            color(MdcTheme.Colors.onPrimary)
+                        }
+                    }
+                }
+            }
+
+            View {
                 attr {
-                    flex(1f)
-                    marginTop(MdcTheme.Spacing.sm)
+                    marginTop(MdcTheme.Spacing.md)
+                    padding(MdcTheme.Spacing.md)
+                    backgroundColor(MdcTheme.Colors.surface)
+                    borderRadius(16f)
+                    boxShadow(MdcTheme.Elevation.level1)
+                }
+                Text {
+                    attr {
+                        text("Live counts only")
+                        fontSize(MdcTheme.Typography.titleMedium)
+                        fontWeightSemiBold()
+                        color(MdcTheme.Colors.onSurface)
+                    }
+                }
+                Text {
+                    attr {
+                        text("To reduce page jank, this screen no longer renders scan result cards. Open Device List to browse WiFi, Bluetooth, and Cell records.")
+                        fontSize(MdcTheme.Typography.bodyMedium)
+                        color(MdcTheme.Colors.onSurfaceVariant)
+                        marginTop(MdcTheme.Spacing.sm)
+                    }
                 }
                 View {
                     attr {
-                        flexDirection(FlexDirection.ROW)
+                        marginTop(MdcTheme.Spacing.md)
+                        padding(top = 10f, bottom = 10f, left = 14f, right = 14f)
+                        backgroundColor(MdcTheme.Colors.primary)
+                        borderRadius(16f)
+                        alignItems(FlexAlign.CENTER)
+                        justifyContent(FlexJustifyContent.CENTER)
                     }
-                    MdcRecordColumn("WiFi", { this@ScannerPage.recentWifiText }, MdcTheme.Colors.wifi, rightMargin = true)
-                    MdcRecordColumn("Bluetooth", { this@ScannerPage.recentBluetoothText }, MdcTheme.Colors.bluetooth)
+                    event {
+                        click {
+                            this@ScannerPage.navigateTo("DeviceList")
+                        }
+                    }
+                    Text {
+                        attr {
+                            text("Open Device List")
+                            fontSize(MdcTheme.Typography.labelLarge)
+                            fontWeightSemiBold()
+                            color(MdcTheme.Colors.onPrimary)
+                        }
+                    }
                 }
             }
 
             MdcNavigationDrawerHost(
                 isOpen = { this@ScannerPage.drawerOpen },
                 currentPage = { "Scanner" },
+                pageHeight = this@ScannerPage.pagerData.pageViewHeight,
                 onClose = { this@ScannerPage.drawerOpen = false },
                 onNavigate = { this@ScannerPage.navigateTo(it) }
             )
@@ -131,6 +209,17 @@ class ScannerPage : Pager() {
     }
 
     private fun startScanning() {
+        if (!PlatformScanController.isBluetoothEnabled()) {
+            scanStatus = "Requesting Bluetooth..."
+            PlatformScanController.requestEnableBluetooth(onEnabled = {
+                if (isPageActive) startScanningInternal()
+            })
+            return
+        }
+        startScanningInternal()
+    }
+
+    private fun startScanningInternal() {
         isScanning = true
         val result = PlatformScanController.startBackgroundScanning()
         scanStatus = result.message
@@ -138,11 +227,12 @@ class ScannerPage : Pager() {
             isScanning = false
             return
         }
-        refreshData()
-        lifecycleScope.launch {
-            while (isScanning) {
-                refreshData()
-                delay(1000)
+        refreshCounts()
+        safeLaunch("Scanner.loop") {
+            while (isScanning && isPageActive) {
+                refreshCounts()
+                // Count-only refresh is cheaper than rebuilding a device list every second.
+                kotlinx.coroutines.delay(3000L)
             }
         }
     }
@@ -151,34 +241,30 @@ class ScannerPage : Pager() {
         val result = PlatformScanController.stopBackgroundScanning()
         scanStatus = result.message
         isScanning = false
-        refreshData()
+        refreshCounts()
     }
 
-    private fun refreshData() {
-        lifecycleScope.launch {
+    private fun refreshCounts() {
+        safeLaunch("Scanner.refreshCounts") {
+            if (!isPageActive) return@safeLaunch
             runCatching {
                 val db = DatabaseFactory.getDatabase()
                 val wifiDao = WifiScanDao(db)
                 val bluetoothDao = BluetoothScanDao(db)
+                val cellDao = CellScanDao(db)
+                if (!isPageActive) return@safeLaunch
                 wifiCount = wifiDao.getCount()
                 bluetoothCount = bluetoothDao.getCount()
-                recentWifiText = formatWifiRecords(wifiDao.getRecordsPaginated(limit = 10, offset = 0))
-                recentBluetoothText = formatBluetoothRecords(bluetoothDao.getRecordsPaginated(limit = 10, offset = 0))
-            }.onFailure { it.printStackTrace() }
+                cellCount = cellDao.getCount()
+                cellHint = computeCellHint(cellCount)
+            }.onFailure { CrashLogger.log("Scanner.refreshCounts", it) }
         }
     }
 
-    private fun formatWifiRecords(records: List<WifiScanRecord>): String {
-        if (records.isEmpty()) return "No WiFi records"
-        return records.joinToString(separator = "\n\n") {
-            "${it.ssid.ifEmpty { "Unknown" }}  ${it.signalStrength} dBm\n${it.bssid}\nSeen ${it.count} times"
-        }
-    }
 
-    private fun formatBluetoothRecords(records: List<BluetoothScanRecord>): String {
-        if (records.isEmpty()) return "No Bluetooth records"
-        return records.joinToString(separator = "\n\n") {
-            "${it.name.ifEmpty { "Unknown" }}  ${it.rssi} dBm\n${it.address}\nSeen ${it.count} times"
-        }
+    private fun requestCellPermission() {
+        requestCellScanPermission()
     }
+    private fun computeCellHint(count: Long): String = cellReadinessHint(count)
 }
+

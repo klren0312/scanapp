@@ -2,11 +2,15 @@ package com.example.scanapp.service
 
 import android.content.Context
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.CellScanDao
+import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.platform.AndroidBluetoothScanner
+import com.example.scanapp.platform.AndroidCellScanner
 import com.example.scanapp.platform.AndroidWifiScanner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,6 +19,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class AndroidScannerService(
     private val context: Context,
@@ -26,6 +32,8 @@ class AndroidScannerService(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val wifiScanner = AndroidWifiScanner(context)
     private val bluetoothScanner = AndroidBluetoothScanner(context)
+    private val cellScanner = AndroidCellScanner(context)
+    private val bluetoothStateMutex = Mutex()
 
     private val _isScanning = MutableStateFlow(false)
     override val isScanning: StateFlow<Boolean> = _isScanning
@@ -57,17 +65,17 @@ class AndroidScannerService(
     }
 
     override suspend fun startBluetoothScan() {
-        bluetoothScanner.startScan { record ->
-            scope.launch {
-                val location = locationService.getCurrentLocation()
-                val recordWithLocation = record.copy(
-                    latitude = location?.latitude ?: 0.0,
-                    longitude = location?.longitude ?: 0.0
-                )
-                bluetoothDao.insertBatch(listOf(recordWithLocation))
-                _bluetoothDevices.value = bluetoothDao.getAllRecords()
-            }
+        if (!bluetoothScanner.isBluetoothEnabled()) {
+            // 蓝牙未开启，记录错误
+            return
         }
+        bluetoothScanner.startScan(
+            callback = ::handleBluetoothResult,
+            onError = { error ->
+                // 蓝牙扫描失败，可在此上报
+                android.util.Log.e("AndroidScannerService", error)
+            }
+        )
     }
 
     override suspend fun stopBluetoothScan() {
@@ -78,36 +86,52 @@ class AndroidScannerService(
         _isScanning.value = true
 
         // 启动蓝牙扫描（持续监听）
-        bluetoothScanner.startScan { record ->
-            scope.launch {
-                val location = locationService.getCurrentLocation()
-                val recordWithLocation = record.copy(
-                    latitude = location?.latitude ?: 0.0,
-                    longitude = location?.longitude ?: 0.0
-                )
-                bluetoothDao.insertBatch(listOf(recordWithLocation))
-                _bluetoothDevices.value = bluetoothDao.getAllRecords()
+        bluetoothScanner.startScan(
+            callback = ::handleBluetoothResult,
+            onError = { error ->
+                android.util.Log.e("AndroidScannerService", error)
             }
-        }
+        )
 
         scanJob = scope.launch {
             while (true) {
-                // 扫描WiFi
-                wifiScanner.startScan()
-                val wifiDevices = wifiScanner.scanWifiNetworks()
-                _wifiDevices.value = wifiDevices
+                try {
+                    // 扫描WiFi
+                    wifiScanner.startScan()
+                    val wifiDevices = wifiScanner.scanWifiNetworks()
+                    _wifiDevices.value = wifiDevices
 
-                // 获取当前位置（一次获取，多次使用）
-                val location = locationService.getCurrentLocation()
+                    // 获取当前位置（一次获取，多次使用）
+                    val location = locationService.getCurrentLocation()
 
-                // 批量保存WiFi到数据库
-                val devicesWithLocation = wifiDevices.map { device ->
-                    device.copy(
-                        latitude = location?.latitude ?: 0.0,
-                        longitude = location?.longitude ?: 0.0
-                    )
+                    // 批量保存WiFi到数据库
+                    val devicesWithLocation = wifiDevices.map { device ->
+                        device.copy(
+                            latitude = location?.latitude ?: 0.0,
+                            longitude = location?.longitude ?: 0.0
+                        )
+                    }
+                    wifiDao.insertBatch(devicesWithLocation)
+
+                    val cellResults = try {
+                        cellScanner.scanCellInfo()
+                    } catch (e: Exception) {
+                        android.util.Log.e("AndroidScannerService", "Cell scan error: ${e.message}")
+                        emptyList()
+                    }
+                    if (cellResults.isNotEmpty()) {
+                        val cellDao = CellScanDao(DatabaseFactory.getDatabase())
+                        val cellWithLocation = cellResults.map { record ->
+                            record.copy(
+                                latitude = location?.latitude ?: 0.0,
+                                longitude = location?.longitude ?: 0.0
+                            )
+                        }
+                        cellDao.insertBatch(cellWithLocation)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AndroidScannerService", "WiFi scan/save error: ${e.message}")
                 }
-                wifiDao.insertBatch(devicesWithLocation)
 
                 delay(5000) // 每5秒扫描一次
             }
@@ -119,5 +143,36 @@ class AndroidScannerService(
         scanJob = null
         _isScanning.value = false
         bluetoothScanner.stopScan()
+    }
+
+    private fun handleBluetoothResult(record: BluetoothScanRecord) {
+        scope.launch {
+            try {
+                val location = locationService.getCurrentLocation()
+                val recordWithLocation = record.copy(
+                    latitude = location?.latitude ?: 0.0,
+                    longitude = location?.longitude ?: 0.0
+                )
+                bluetoothDao.insertOrUpdate(recordWithLocation)
+                val storedRecord = bluetoothDao.getRecordByAddress(recordWithLocation.address)
+                    ?: recordWithLocation
+                bluetoothStateMutex.withLock {
+                    val current = _bluetoothDevices.value
+                    val existingIndex = current.indexOfFirst { it.address == storedRecord.address }
+                    if (existingIndex < 0) {
+                        _bluetoothDevices.value = listOf(storedRecord) + current
+                    } else if (storedRecord.count >= current[existingIndex].count) {
+                        _bluetoothDevices.value = current.toMutableList().apply {
+                            removeAt(existingIndex)
+                            add(0, storedRecord)
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("AndroidScannerService", "Bluetooth save error: ${e.message}")
+            }
+        }
     }
 }

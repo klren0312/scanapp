@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import com.example.scanapp.models.BluetoothScanRecord
+import com.example.scanapp.models.CellScanRecord
 import com.example.scanapp.models.LocationRecord
 import com.example.scanapp.models.WifiScanRecord
 import java.io.File
@@ -15,17 +16,19 @@ class AndroidExportService(private val context: Context) : ExportService {
     override suspend fun exportToCsv(
         wifiRecords: List<WifiScanRecord>,
         bluetoothRecords: List<BluetoothScanRecord>,
-        locationRecords: List<LocationRecord>
+        locationRecords: List<LocationRecord>,
+        cellRecords: List<CellScanRecord>
     ): String {
-        return exportServiceImpl.exportToCsv(wifiRecords, bluetoothRecords, locationRecords)
+        return exportServiceImpl.exportToCsv(wifiRecords, bluetoothRecords, locationRecords, cellRecords)
     }
 
     override suspend fun exportToJson(
         wifiRecords: List<WifiScanRecord>,
         bluetoothRecords: List<BluetoothScanRecord>,
-        locationRecords: List<LocationRecord>
+        locationRecords: List<LocationRecord>,
+        cellRecords: List<CellScanRecord>
     ): String {
-        return exportServiceImpl.exportToJson(wifiRecords, bluetoothRecords, locationRecords)
+        return exportServiceImpl.exportToJson(wifiRecords, bluetoothRecords, locationRecords, cellRecords)
     }
 
     override suspend fun shareFile(filePath: String) {

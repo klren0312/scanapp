@@ -9,12 +9,14 @@ import androidx.core.content.ContextCompat
 
 class PermissionHelper(private val activity: ComponentActivity) {
 
-    private var foregroundCallback: ((Boolean) -> Unit)? = null
+    private var onCompleteCallback: ((Boolean) -> Unit)? = null
 
-    private val foregroundLauncher = activity.registerForActivityResult(
+    private val permissionLauncher = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { grantResults ->
-        foregroundCallback?.invoke(grantResults.all { it.value })
+    ) { results ->
+        val allGranted = results.values.all { it }
+        onCompleteCallback?.invoke(allGranted)
+        onCompleteCallback = null
     }
 
     fun checkAndRequestPermissions(onComplete: (Boolean) -> Unit) {
@@ -24,15 +26,13 @@ class PermissionHelper(private val activity: ComponentActivity) {
     private fun requestForegroundPermissions(onResult: (Boolean) -> Unit) {
         val needed = getAllForegroundPermissions().filter {
             ContextCompat.checkSelfPermission(activity, it) != PackageManager.PERMISSION_GRANTED
-        }.toTypedArray()
-
+        }
         if (needed.isEmpty()) {
             onResult(true)
             return
         }
-
-        foregroundCallback = onResult
-        foregroundLauncher.launch(needed)
+        onCompleteCallback = onResult
+        permissionLauncher.launch(needed.toTypedArray())
     }
 
     companion object {
@@ -43,18 +43,19 @@ class PermissionHelper(private val activity: ComponentActivity) {
         }
 
         fun getAllForegroundPermissions(): Array<String> {
-            val list = mutableListOf<String>()
-            list.addAll(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
+            val list = mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.READ_PHONE_STATE
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 list.add(Manifest.permission.BLUETOOTH_SCAN)
                 list.add(Manifest.permission.BLUETOOTH_CONNECT)
             }
-            return list.distinct().toTypedArray()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                list.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            return list.toTypedArray()
         }
     }
 }

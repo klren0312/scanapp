@@ -2,12 +2,11 @@ package com.example.scanapp.ui
 
 import com.example.scanapp.database.DatabaseFactory
 import com.example.scanapp.database.LocationDao
+import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.models.LocationRecord
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.coroutines.delay
-import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
@@ -26,16 +25,20 @@ class MapPage : Pager() {
     private var locationRecords by observableList<LocationRecord>()
     private var totalCount by observable(0L)
     private var drawerOpen by observable(false)
+    private var isPageActive = true
 
     override fun created() {
         super.created()
-        refreshData()
-        lifecycleScope.launch {
-            while (true) {
-                delay(3000)
-                refreshData()
-            }
-        }
+        safeLaunch("Map.created") { refreshData() }
+    }
+
+    override fun pageWillDestroy() {
+        isPageActive = false
+        super.pageWillDestroy()
+    }
+
+    private fun refresh() {
+        safeLaunch("Map.refresh") { refreshData() }
     }
 
     override fun body(): ViewContainer<*, *>.() -> Unit = {
@@ -49,6 +52,8 @@ class MapPage : Pager() {
 
             MdcMenuTopBar("Locations") { this@MapPage.drawerOpen = true }
             MdcBodyText({ "Total records: ${this@MapPage.totalCount}" }, MdcTheme.Colors.onSurfaceVariant)
+
+            MdcOutlinedButton("Refresh") { this@MapPage.refresh() }
 
             Scroller {
                 attr {
@@ -67,6 +72,7 @@ class MapPage : Pager() {
             MdcNavigationDrawerHost(
                 isOpen = { this@MapPage.drawerOpen },
                 currentPage = { "Map" },
+                pageHeight = this@MapPage.pagerData.pageViewHeight,
                 onClose = { this@MapPage.drawerOpen = false },
                 onNavigate = { this@MapPage.navigateTo(it) }
             )
@@ -96,18 +102,16 @@ class MapPage : Pager() {
         }
     }
 
-    private fun refreshData() {
-        lifecycleScope.launch {
-            runCatching {
-                val dao = LocationDao(DatabaseFactory.getDatabase())
-                totalCount = dao.getCount()
-                val latestRecords = dao.getAllRecords()
-                if (locationRecords != latestRecords) {
-                    locationRecords.clear()
-                    locationRecords.addAll(latestRecords)
-                }
-            }.onFailure { it.printStackTrace() }
-        }
+    private suspend fun refreshData() {
+        if (!isPageActive) return
+        runCatching {
+            val dao = LocationDao(DatabaseFactory.getDatabase())
+            totalCount = dao.getCount()
+            val latestRecords = dao.getAllRecords()
+            if (!isPageActive) return
+            locationRecords.clear()
+            locationRecords.addAll(latestRecords)
+        }.onFailure { CrashLogger.log("Map.refreshData", it) }
     }
 
     private fun formatOneDecimal(value: Double): String {

@@ -1,5 +1,13 @@
-package com.example.scanapp.service
+﻿package com.example.scanapp.service
 
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import com.example.scanapp.ActivityHolder
+import com.example.scanapp.PermissionHelper
 import com.example.scanapp.database.AndroidDatabaseDriver
 
 actual object PlatformScanController {
@@ -18,6 +26,88 @@ actual object PlatformScanController {
             ScanControlResult(true, "Scanning stopped")
         }.getOrElse {
             ScanControlResult(false, "Stop failed: ${it.message ?: it::class.simpleName}")
+        }
+    }
+
+    actual fun isBluetoothEnabled(): Boolean {
+        return runCatching {
+            val context = AndroidDatabaseDriver.requireContext()
+            val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            manager.adapter?.isEnabled == true
+        }.getOrDefault(false)
+    }
+
+    actual fun requestEnableBluetooth(onEnabled: () -> Unit) {
+        runCatching {
+            val context = AndroidDatabaseDriver.requireContext()
+            val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val adapter = manager.adapter ?: return@runCatching
+            if (adapter.isEnabled) {
+                onEnabled()
+                return@runCatching
+            }
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context?, intent: Intent?) {
+                    if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    if (state == BluetoothAdapter.STATE_ON) {
+                        runCatching { context.unregisterReceiver(this) }
+                        onEnabled()
+                    }
+                }
+            }
+            context.registerReceiver(
+                receiver,
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+            val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    actual fun openDeviceMap(latitude: Double, longitude: Double, title: String) {
+        runCatching {
+            val context = AndroidDatabaseDriver.requireContext()
+            val intent = Intent().apply {
+                setClassName(context, "com.example.scanapp.OsmMapActivity")
+                putExtra("extra_lat", latitude)
+                putExtra("extra_lon", longitude)
+                putExtra("extra_title", title)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+}
+actual fun getCellScanReadiness(): CellScanReadiness {
+    val context = runCatching { AndroidDatabaseDriver.requireContext() }.getOrNull() ?: return CellScanReadiness.UNSUPPORTED
+    val fine = androidx.core.content.ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    // Cell info requires ACCESS_FINE_LOCATION on Android 10+; coarse/approximate is not enough.
+    val locationOk = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) fine else {
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+    val phoneState = androidx.core.content.ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.READ_PHONE_STATE
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    // Cell identity (MCC/MNC/LAC/CID) is masked without READ_PHONE_STATE, so the scan
+    // only yields useful records once it is granted.
+    return if (locationOk && phoneState) CellScanReadiness.READY else CellScanReadiness.MISSING_PERMISSION
+}
+actual fun requestCellScanPermission() {
+    val activity = ActivityHolder.currentActivity ?: return
+    PermissionHelper(activity).checkAndRequestPermissions { granted ->
+        if (granted) {
+            // Permission granted; the next scan cycle will pick up cell info.
         }
     }
 }

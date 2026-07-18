@@ -9,7 +9,8 @@
     <!-- 蓝牙权限 -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     
     <!-- 位置权限 -->
@@ -17,6 +18,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
         android:maxSdkVersion="32" />
+
+    <!-- 基站（小区）信息读取权限 -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     
     <!-- 前台服务权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -30,8 +34,9 @@
         android:name=".ScanApplication"
         android:allowBackup="true"
         android:label="ScanApp"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+        android:theme="@style/Theme.ScanApp">
         <activity
             android:name=".MainActivity"
             android:exported="true">

@@ -71,6 +71,7 @@ kotlin {
             dependencies {
                 implementation("app.cash.sqldelight:android-driver:2.0.1")
                 implementation("androidx.core:core-ktx:1.7.0")
+                implementation("androidx.activity:activity:1.6.1")
             }
         }
     }

@@ -16,3 +16,6 @@ local.properties
 gradle-8.2-bin.zip
 *.zip
 .kotlin/errors/
+.claude
+.agents
+.opencode

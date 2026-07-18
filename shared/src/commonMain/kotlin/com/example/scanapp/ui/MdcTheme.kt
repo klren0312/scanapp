@@ -6,28 +6,29 @@ import com.tencent.kuikly.core.base.Color
 internal object MdcTheme {
 
     object Colors {
-        val primary = Color(0xff1565C0L)
-        val onPrimary = Color.WHITE
-        val primaryContainer = Color(0xffD1E4FFL)
-        val onPrimaryContainer = Color(0xff001D36L)
-        val secondary = Color(0xff00897BL)
-        val onSecondary = Color.WHITE
-        val secondaryContainer = Color(0xffB2DFDBL)
-        val onSecondaryContainer = Color(0xff00201EL)
-        val error = Color(0xffC62828L)
-        val onError = Color.WHITE
-        val errorContainer = Color(0xffFFDAD6L)
-        val background = Color(0xffFAFAFAL)
-        val onBackground = Color(0xff1C1B1FL)
-        val surface = Color.WHITE
-        val onSurface = Color(0xff1C1B1FL)
-        val surfaceVariant = Color(0xffF5F5F5L)
-        val onSurfaceVariant = Color(0xff666666L)
-        val outline = Color(0xffDADCE0L)
-        val wifi = Color(0xff1565C0L)
-        val bluetooth = Color(0xff00897BL)
-        val warning = Color(0xffE65100L)
-        val rankingGold = Color(0xffFF8F00L)
+        val primary = Color(0xff58C7F3L)
+        val onPrimary = Color(0xff002A38L)
+        val primaryContainer = Color(0xff153A47L)
+        val onPrimaryContainer = Color(0xffBDEBFCL)
+        val secondary = Color(0xff63D5A3L)
+        val onSecondary = Color(0xff003824L)
+        val secondaryContainer = Color(0xff174332L)
+        val onSecondaryContainer = Color(0xffB8F1D3L)
+        val error = Color(0xffFF8A80L)
+        val onError = Color(0xff3B0504L)
+        val errorContainer = Color(0xff5A1F1DL)
+        val background = Color(0xff0D0F10L)
+        val onBackground = Color(0xffE7ECEEL)
+        val surface = Color(0xff171A1CL)
+        val onSurface = Color(0xffE7ECEEL)
+        val surfaceVariant = Color(0xff23272AL)
+        val onSurfaceVariant = Color(0xffAAB4B8L)
+        val outline = Color(0xff3A4144L)
+        val wifi = Color(0xff62B5FFL)
+        val bluetooth = Color(0xff64D8CBL)
+        val cell = Color(0xffD0B4FFL)
+        val warning = Color(0xffFFBE5CL)
+        val rankingGold = Color(0xffFFD166L)
     }
 
     object Typography {
@@ -54,9 +55,9 @@ internal object MdcTheme {
 
     object Elevation {
         val level0 = BoxShadow(0f, 0f, 0f, Color.TRANSPARENT)
-        val level1 = BoxShadow(0f, 1f, 3f, Color(0x1F000000))
-        val level2 = BoxShadow(0f, 2f, 6f, Color(0x26000000))
-        val level3 = BoxShadow(0f, 4f, 8f, Color(0x2D000000))
-        val level4 = BoxShadow(0f, 6f, 10f, Color(0x33000000))
+        val level1 = BoxShadow(0f, 1f, 3f, Color(0x66000000))
+        val level2 = BoxShadow(0f, 2f, 6f, Color(0x73000000))
+        val level3 = BoxShadow(0f, 4f, 8f, Color(0x80000000))
+        val level4 = BoxShadow(0f, 6f, 10f, Color(0x8C000000))
     }
 }
