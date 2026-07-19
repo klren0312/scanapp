@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## 2026-07-19 — Admin upload ingest
+- Added `admin/server/src/routes/upload.js`: X-Upload-Token authenticated ingest of wifi/bluetooth sightings; upsert device, idempotent sightings via unique (device_id, uploader_id, seen_at), incremental clustering, zero-coord rejection.
+- Verification: smoke script `ingestBatch` returns inserted/duplicates; dedup confirmed.
+
+
 ## 2026-07-19 — Admin auth
 - Added `admin/server/src/auth.js`: admin login (bcrypt) issuing 12h JWT, Bearer auth middleware for protected routes.
 - Verification: code review; integration covered by server smoke test (A7).
