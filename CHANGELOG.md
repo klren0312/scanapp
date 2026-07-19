@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 2026-07-19 — Admin clustering engine
+- Added `admin/server/src/cluster.js`: incremental haversine distance clustering (500m default) flagging devices seen in >=2 places as is_key. Full `recomputeAll` rebuild. node:test coverage on clustering + is_key.
+- Verification: `node --test test/cluster.test.js` (3/3 pass) against local MySQL.
+
 ## 2026-07-19 — Admin server DB fixes
 - Quoted MySQL reserved word `signal` in schema; enabled `multipleStatements` for schema initialization.
 
