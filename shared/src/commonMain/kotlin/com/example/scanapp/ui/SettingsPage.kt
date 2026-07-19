@@ -8,6 +8,7 @@ import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.logging.CrashLogger
 import com.example.scanapp.service.ExportServiceImpl
 import com.example.scanapp.service.PlatformExportController
+import com.example.scanapp.service.UploadSettings
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
@@ -17,6 +18,7 @@ import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.View
 
@@ -31,8 +33,17 @@ class SettingsPage : Pager() {
     private var drawerOpen by observable(false)
     private var hasAppeared = false
 
+    private var uploadServerUrl by observable("")
+    private var uploadToken by observable("")
+    private var uploaderId by observable("")
+    private var uploadEnabled by observable(false)
+
     override fun created() {
         super.created()
+        uploadServerUrl = UploadSettings.serverUrl
+        uploadToken = UploadSettings.uploadToken
+        uploaderId = UploadSettings.uploaderId
+        uploadEnabled = UploadSettings.uploadEnabled
         loadSummary()
     }
 
@@ -87,6 +98,83 @@ class SettingsPage : Pager() {
 
                 MdcSectionHeader("Data Management")
                 MdcErrorButton("Clear All Data") { this@SettingsPage.clearAllData() }
+
+                MdcSectionHeader("平台上报")
+                MdcCardRow {
+                    View {
+                        attr {
+                            flex(1f)
+                            flexDirection(FlexDirection.COLUMN)
+                        }
+                        MdcCaption("Server URL")
+                        InputView {
+                            attr {
+                                this.value(uploadServerUrl)
+                                placeholder("https://admin.example.com/api/upload")
+                                fontSize(MdcTheme.Typography.bodyMedium)
+                                color(MdcTheme.Colors.onSurface)
+                                marginTop(MdcTheme.Spacing.xs)
+                            }
+                            event {
+                                input { v ->
+                                    uploadServerUrl = v
+                                    UploadSettings.serverUrl = v
+                                }
+                            }
+                        }
+                        MdcCaption("Upload Token")
+                        InputView {
+                            attr {
+                                this.value(uploadToken)
+                                placeholder("auth token")
+                                fontSize(MdcTheme.Typography.bodyMedium)
+                                color(MdcTheme.Colors.onSurface)
+                                marginTop(MdcTheme.Spacing.xs)
+                            }
+                            event {
+                                input { v ->
+                                    uploadToken = v
+                                    UploadSettings.uploadToken = v
+                                }
+                            }
+                        }
+                        MdcCaption("Uploader ID")
+                        InputView {
+                            attr {
+                                this.value(uploaderId)
+                                placeholder("default")
+                                fontSize(MdcTheme.Typography.bodyMedium)
+                                color(MdcTheme.Colors.onSurface)
+                                marginTop(MdcTheme.Spacing.xs)
+                            }
+                            event {
+                                input { v ->
+                                    uploaderId = v
+                                    UploadSettings.uploaderId = v
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                flexDirection(FlexDirection.ROW)
+                                alignItems(FlexAlign.CENTER)
+                                marginTop(MdcTheme.Spacing.sm)
+                            }
+                            MdcSwitch(uploadEnabled) { checked ->
+                                uploadEnabled = checked
+                                UploadSettings.uploadEnabled = checked
+                            }
+                            Text {
+                                attr {
+                                    text("启用上报")
+                                    fontSize(MdcTheme.Typography.bodyMedium)
+                                    color(MdcTheme.Colors.onSurface)
+                                    marginLeft(MdcTheme.Spacing.sm)
+                                }
+                            }
+                        }
+                    }
+                }
 
                 MdcSectionHeader("About")
                 MdcBodyText("ScanApp v1.0")

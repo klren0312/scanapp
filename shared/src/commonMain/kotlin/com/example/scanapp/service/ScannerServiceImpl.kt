@@ -1,6 +1,8 @@
 package com.example.scanapp.service
 
 import com.example.scanapp.database.BluetoothScanDao
+import com.example.scanapp.database.DatabaseFactory
+import com.example.scanapp.database.PendingUploadDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
@@ -12,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 class ScannerServiceImpl(
     private val wifiDao: WifiScanDao,
@@ -19,8 +22,17 @@ class ScannerServiceImpl(
     private val locationService: LocationService,
     private val onScanWifi: suspend () -> List<WifiScanRecord>,
     private val onScanBluetooth: suspend () -> List<BluetoothScanRecord>,
-    private val scanIntervalMs: Long = 5000L
+    private val scanIntervalMs: Long = 5000L,
+    private val uploaderId: String = "default",
+    private val serverUrlProvider: () -> String = { "" },
+    private val uploadTokenProvider: () -> String = { "" },
+    private val uploadEnabledProvider: () -> Boolean = { false }
 ) : ScannerService {
+
+    private val uploadService = UploadService(object : UploadTransportLike {
+        override suspend fun postJson(url: String, token: String, body: String): Boolean =
+            UploadTransport.postJson(url, token, body)
+    })
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -60,6 +72,8 @@ class ScannerServiceImpl(
         scanJob = scope.launch {
             while (true) {
                 try {
+                    flushPendingUploads()
+
                     val wifiDevices = onScanWifi()
                     _wifiDevices.value = wifiDevices
                     saveWifiDevices(wifiDevices)
@@ -91,6 +105,14 @@ class ScannerServiceImpl(
             )
         }
         wifiDao.insertBatch(devicesWithLocation)
+        val batch = ScanBatch(
+            uploaderId = uploaderId,
+            wifi = devicesWithLocation.map {
+                WifiSighting(it.bssid, it.ssid, it.signalStrength, it.frequency, it.latitude, it.longitude, it.timestamp)
+            },
+            bluetooth = emptyList()
+        )
+        enqueueUpload(batch)
     }
 
     private suspend fun saveBluetoothDevices(devices: List<BluetoothScanRecord>) {
@@ -102,5 +124,47 @@ class ScannerServiceImpl(
             )
         }
         bluetoothDao.insertBatch(devicesWithLocation)
+        val batch = ScanBatch(
+            uploaderId = uploaderId,
+            wifi = emptyList(),
+            bluetooth = devicesWithLocation.map {
+                BtSighting(it.address, it.name, it.rssi, it.deviceType, it.latitude, it.longitude, it.timestamp)
+            }
+        )
+        enqueueUpload(batch)
+    }
+
+    private suspend fun enqueueUpload(batch: ScanBatch) {
+        val db = DatabaseFactory.getDatabase()
+        PendingUploadDao(db).enqueue(
+            UploadService(object : UploadTransportLike {
+                override suspend fun postJson(url: String, token: String, body: String): Boolean =
+                    UploadTransport.postJson(url, token, body)
+            }).buildPayload(batch),
+            System.currentTimeMillis()
+        )
+        flushPendingUploads()
+    }
+
+    private suspend fun flushPendingUploads() {
+        if (!uploadEnabledProvider()) return
+        val url = serverUrlProvider()
+        val token = uploadTokenProvider()
+        if (url.isBlank() || token.isBlank()) return
+        val db = DatabaseFactory.getDatabase()
+        val dao = PendingUploadDao(db)
+        if (dao.count() > 500) {
+            val oldest = dao.peekOldest(500)
+            dao.deleteUpTo(oldest.last().id)
+        }
+        val rows = dao.peekOldest(50)
+        if (rows.isEmpty()) return
+        val svc = uploadService
+        var maxId = -1L
+        for (row in rows) {
+            val ok = svc.tryUpload(url, token, Json.decodeFromString(row.payload))
+            if (ok) maxId = row.id
+        }
+        if (maxId > 0) dao.deleteUpTo(maxId)
     }
 }

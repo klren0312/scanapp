@@ -1,4 +1,9 @@
-﻿## 2026-07-19 — Admin platform web (Vue3 + Element Plus + AMap)
+﻿## 2026-07-19 — App upload to admin platform
+- Added per-scan upload of sighting batches to the admin backend (UploadTransport + UploadService + PendingUpload queue with retry). Settings page gains server URL/token/uploader ID/enable switch.
+- Zero-coordinate sightings are dropped before upload. Pending queue capped at 500 batches.
+- Verification: `./gradlew.bat :shared:testDebugUnitTest`, `:shared:compileDebugKotlinAndroid`.
+
+## 2026-07-19 — Admin platform web (Vue3 + Element Plus + AMap)
 - Added `admin/web`: login, dashboard with key-device alert, AMap map view (filter + detail drawer + trajectory), device list with cross-region highlight, device detail with trajectory and per-place encounter counts.
 - Verification: `npm run dev` manual check; build via `npm run build`.
 

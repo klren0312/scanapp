@@ -602,6 +602,35 @@ internal fun ViewContainer<*, *>.MdcListItem(
 // Divider
 // ──────────────────────────────────────────
 
+internal fun ViewContainer<*, *>.MdcSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val trackWidth = 48f
+    val thumbSize = 22f
+    View {
+        attr {
+            size(trackWidth, 28f)
+            borderRadius(14f)
+            backgroundColor(if (checked) MdcTheme.Colors.primary else MdcTheme.Colors.outline)
+            marginRight(MdcTheme.Spacing.sm)
+        }
+        event {
+            click { onCheckedChange(!checked) }
+        }
+        View {
+            attr {
+                size(thumbSize, thumbSize)
+                borderRadius(thumbSize / 2f)
+                backgroundColor(Color.WHITE)
+                absolutePositionAllZero()
+                marginTop((28f - thumbSize) / 2f)
+                marginLeft(if (checked) trackWidth - thumbSize - 3f else 3f)
+            }
+        }
+    }
+}
+
 internal fun ViewContainer<*, *>.MdcDivider() {
     View {
         attr {
