@@ -192,3 +192,23 @@ WHERE cellKey = ?;
 
 deleteAllCellRecords:
 DELETE FROM CellScanRecord;
+
+CREATE TABLE PendingUpload (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payload TEXT NOT NULL,
+    createdAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_pending_created ON PendingUpload(createdAt);
+
+enqueuePendingUpload:
+INSERT INTO PendingUpload (payload, createdAt) VALUES (?, ?);
+
+selectOldestPendingUploads:
+SELECT * FROM PendingUpload ORDER BY createdAt ASC LIMIT :limit;
+
+deletePendingUploadsUpTo:
+DELETE FROM PendingUpload WHERE id <= :maxId;
+
+countPendingUploads:
+SELECT COUNT(*) FROM PendingUpload;
