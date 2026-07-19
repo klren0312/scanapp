@@ -1,4 +1,7 @@
-﻿## 2026-07-19 — Admin web scaffold (Vue3 + Element Plus)
+﻿## 2026-07-19 — Admin web login view
+- Added `admin/web/src/views/LoginView.vue`: admin username/password login, JWT stored via auth store, redirects to dashboard.
+
+## 2026-07-19 — Admin web scaffold (Vue3 + Element Plus)
 - Added `admin/web`: Vite + Vue3 app shell, pinia auth store, axios API client (JWT interceptor), vue-router with auth guard, AMap env config.
 - Verification: `npm install` clean; full build deferred until views exist (B4).
 
