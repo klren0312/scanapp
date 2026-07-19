@@ -33,13 +33,13 @@ function buildApp() {
 }
 
 test('upload requires token (401)', async () => {
-  const res = await request(buildApp()).post('/api/upload/upload').send({ uploaderId: 'u', wifi: [] });
+  const res = await request(buildApp()).post('/api/upload').send({ uploaderId: 'u', wifi: [] });
   assert.equal(res.status, 401);
 });
 
 test('upload then login then list devices', async () => {
   const app = buildApp();
-  const up = await request(app).post('/api/upload/upload').set('x-upload-token', config.uploadToken).send({
+  const up = await request(app).post('/api/upload').set('x-upload-token', config.uploadToken).send({
     uploaderId: 'u1',
     wifi: [{ bssid: 'de:ad:be:ef:00:01', ssid: 'cafe', signal: -40, lat: 39.9, lng: 116.4, timestamp: Date.now() }],
   });

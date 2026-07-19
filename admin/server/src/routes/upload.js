@@ -56,7 +56,7 @@ async function ingestBatch(p, type, items, uploaderId, radiusM) {
   return { inserted, duplicates };
 }
 
-router.post('/upload', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const token = req.headers['x-upload-token'];
     if (token !== config.uploadToken) return res.status(401).json({ error: 'invalid upload token' });
