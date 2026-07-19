@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## 2026-07-19 — Admin geo utilities
+- Added `admin/server/src/geo.js`: haversine distance + WGS84->GCJ02 conversion (China bbox only), with node:test coverage.
+- Verification: `node --test test/geo.test.js` (5/5 pass).
+
+
 
 ## 2026-07-19 — Admin platform backend scaffold (Node.js + MySQL)
 - Added `admin/server`: Express + mysql2 project, environment config, connection pool, idempotent schema (admins/devices/sightings/device_clusters), and admin seed script.
