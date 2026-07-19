@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS sightings (
   uploader_id VARCHAR(64) NOT NULL,
   lat DOUBLE NOT NULL,
   lng DOUBLE NOT NULL,
-  signal INT NOT NULL,
+  `signal` INT NOT NULL,
   seen_at DATETIME NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_dedup (device_id, uploader_id, seen_at),

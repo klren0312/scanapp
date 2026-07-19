@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 2026-07-19 — Admin server DB fixes
+- Quoted MySQL reserved word `signal` in schema; enabled `multipleStatements` for schema initialization.
+
+
 ## 2026-07-19 — Admin geo utilities
 - Added `admin/server/src/geo.js`: haversine distance + WGS84->GCJ02 conversion (China bbox only), with node:test coverage.
 - Verification: `node --test test/geo.test.js` (5/5 pass).
