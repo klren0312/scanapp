@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 2026-07-19 — Admin auth
+- Added `admin/server/src/auth.js`: admin login (bcrypt) issuing 12h JWT, Bearer auth middleware for protected routes.
+- Verification: code review; integration covered by server smoke test (A7).
+
 ## 2026-07-19 — Admin clustering engine
 - Added `admin/server/src/cluster.js`: incremental haversine distance clustering (500m default) flagging devices seen in >=2 places as is_key. Full `recomputeAll` rebuild. node:test coverage on clustering + is_key.
 - Verification: `node --test test/cluster.test.js` (3/3 pass) against local MySQL.
