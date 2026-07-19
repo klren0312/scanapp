@@ -1,6 +1,12 @@
 ﻿# Changelog
 
 
+## 2026-07-19 — Admin platform backend scaffold (Node.js + MySQL)
+- Added `admin/server`: Express + mysql2 project, environment config, connection pool, idempotent schema (admins/devices/sightings/device_clusters), and admin seed script.
+- Local DB root/root, db `scanapp_admin`; cluster radius default 500m via CLUSTER_RADIUS_M env.
+- Verification: `npm install` succeeded; DB/create skipped (MySQL not running locally).
+
+
 ## 2026-07-17
 
 - Fixed the background BLE batch writer compile error by moving the suspend database lookup out of a `lazy` initializer and into the suspend batch persistence path.
