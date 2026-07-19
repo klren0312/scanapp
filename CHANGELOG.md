@@ -1,4 +1,8 @@
-﻿## 2026-07-19 — Admin web map view
+﻿## 2026-07-19 — Admin platform web (Vue3 + Element Plus + AMap)
+- Added `admin/web`: login, dashboard with key-device alert, AMap map view (filter + detail drawer + trajectory), device list with cross-region highlight, device detail with trajectory and per-place encounter counts.
+- Verification: `npm run dev` manual check; build via `npm run build`.
+
+## 2026-07-19 — Admin web map view
 - Added `admin/web/src/utils/amap.js` (AMap JS loader) and `admin/web/src/views/MapView.vue`: GCJ-02 map markers (key devices red), filter by keyword/type/keyOnly, click opens detail drawer with trajectory polyline + per-place encounter counts.
 - Verification: manual (needs AMap key + running server).
 
