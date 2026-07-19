@@ -1,4 +1,8 @@
-﻿## 2026-07-19 — Admin web login view
+﻿## 2026-07-19 — Admin web map view
+- Added `admin/web/src/utils/amap.js` (AMap JS loader) and `admin/web/src/views/MapView.vue`: GCJ-02 map markers (key devices red), filter by keyword/type/keyOnly, click opens detail drawer with trajectory polyline + per-place encounter counts.
+- Verification: manual (needs AMap key + running server).
+
+## 2026-07-19 — Admin web login view
 - Added `admin/web/src/views/LoginView.vue`: admin username/password login, JWT stored via auth store, redirects to dashboard.
 
 ## 2026-07-19 — Admin web scaffold (Vue3 + Element Plus)
