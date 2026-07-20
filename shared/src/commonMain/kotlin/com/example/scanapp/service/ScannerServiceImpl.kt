@@ -136,13 +136,7 @@ class ScannerServiceImpl(
 
     private suspend fun enqueueUpload(batch: ScanBatch) {
         val db = DatabaseFactory.getDatabase()
-        PendingUploadDao(db).enqueue(
-            UploadService(object : UploadTransportLike {
-                override suspend fun postJson(url: String, token: String, body: String): Boolean =
-                    UploadTransport.postJson(url, token, body)
-            }).buildPayload(batch),
-            System.currentTimeMillis()
-        )
+        PendingUploadDao(db).enqueue(uploadService.buildPayload(batch), System.currentTimeMillis())
         flushPendingUploads()
     }
 
@@ -159,11 +153,24 @@ class ScannerServiceImpl(
         }
         val rows = dao.peekOldest(50)
         if (rows.isEmpty()) return
-        val svc = uploadService
+        // Upload in order, stop at the first failure so a later success can't sweep a failed
+        // row out of the queue (deleteUpTo would remove everything up to the last success id,
+        // including the failed row). Only delete contiguous leading successes.
         var maxId = -1L
         for (row in rows) {
-            val ok = svc.tryUpload(url, token, Json.decodeFromString(row.payload))
-            if (ok) maxId = row.id
+            val batch = try {
+                Json.decodeFromString<ScanBatch>(row.payload)
+            } catch (e: Exception) {
+                // Unparseable payload (e.g. schema drift after an upgrade): drop it and continue.
+                maxId = row.id
+                continue
+            }
+            val ok = uploadService.tryUpload(url, token, batch)
+            if (ok) {
+                maxId = row.id
+            } else {
+                break
+            }
         }
         if (maxId > 0) dao.deleteUpTo(maxId)
     }

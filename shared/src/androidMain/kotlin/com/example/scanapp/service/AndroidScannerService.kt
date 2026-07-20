@@ -4,12 +4,14 @@ import android.content.Context
 import com.example.scanapp.database.BluetoothScanDao
 import com.example.scanapp.database.CellScanDao
 import com.example.scanapp.database.DatabaseFactory
+import com.example.scanapp.database.PendingUploadDao
 import com.example.scanapp.database.WifiScanDao
 import com.example.scanapp.models.BluetoothScanRecord
 import com.example.scanapp.models.WifiScanRecord
 import com.example.scanapp.platform.AndroidBluetoothScanner
 import com.example.scanapp.platform.AndroidCellScanner
 import com.example.scanapp.platform.AndroidWifiScanner
+import com.example.scanapp.service.UploadSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
 
 class AndroidScannerService(
     private val context: Context,
@@ -34,6 +37,12 @@ class AndroidScannerService(
     private val bluetoothScanner = AndroidBluetoothScanner(context)
     private val cellScanner = AndroidCellScanner(context)
     private val bluetoothStateMutex = Mutex()
+
+    private val uploadService = UploadService(object : UploadTransportLike {
+        override suspend fun postJson(url: String, token: String, body: String): Boolean =
+            UploadTransport.postJson(url, token, body)
+    })
+    private val uploaderId: String get() = UploadSettings.uploaderId.ifBlank { "default" }
 
     private val _isScanning = MutableStateFlow(false)
     override val isScanning: StateFlow<Boolean> = _isScanning
@@ -96,6 +105,9 @@ class AndroidScannerService(
         scanJob = scope.launch {
             while (true) {
                 try {
+                    // Flush any pending uploads from prior scan cycles first.
+                    flushPendingUploads()
+
                     // 扫描WiFi
                     wifiScanner.startScan()
                     val wifiDevices = wifiScanner.scanWifiNetworks()
@@ -112,6 +124,15 @@ class AndroidScannerService(
                         )
                     }
                     wifiDao.insertBatch(devicesWithLocation)
+                    enqueueUpload(
+                        ScanBatch(
+                            uploaderId = uploaderId,
+                            wifi = devicesWithLocation.map {
+                                WifiSighting(it.bssid, it.ssid, it.signalStrength, it.frequency, it.latitude, it.longitude, it.timestamp)
+                            },
+                            bluetooth = emptyList()
+                        )
+                    )
 
                     val cellResults = try {
                         cellScanner.scanCellInfo()
@@ -168,11 +189,67 @@ class AndroidScannerService(
                         }
                     }
                 }
+                enqueueUpload(
+                    ScanBatch(
+                        uploaderId = uploaderId,
+                        wifi = emptyList(),
+                        bluetooth = listOf(
+                            BtSighting(
+                                storedRecord.address,
+                                storedRecord.name,
+                                storedRecord.rssi,
+                                storedRecord.deviceType,
+                                storedRecord.latitude,
+                                storedRecord.longitude,
+                                storedRecord.timestamp
+                            )
+                        )
+                    )
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 android.util.Log.e("AndroidScannerService", "Bluetooth save error: ${e.message}")
             }
         }
+    }
+
+    private suspend fun enqueueUpload(batch: ScanBatch) {
+        val db = DatabaseFactory.getDatabase()
+        PendingUploadDao(db).enqueue(uploadService.buildPayload(batch), System.currentTimeMillis())
+        flushPendingUploads()
+    }
+
+    private suspend fun flushPendingUploads() {
+        if (!UploadSettings.uploadEnabled) return
+        val url = UploadSettings.serverUrl
+        val token = UploadSettings.uploadToken
+        if (url.isBlank() || token.isBlank()) return
+        val db = DatabaseFactory.getDatabase()
+        val dao = PendingUploadDao(db)
+        if (dao.count() > 500) {
+            val oldest = dao.peekOldest(500)
+            dao.deleteUpTo(oldest.last().id)
+        }
+        val rows = dao.peekOldest(50)
+        if (rows.isEmpty()) return
+        // Upload in order, stop at the first failure so a later success can't sweep a failed row
+        // out of the queue. Only delete contiguous leading successes.
+        var maxId = -1L
+        for (row in rows) {
+            val batch = try {
+                Json.decodeFromString<ScanBatch>(row.payload)
+            } catch (e: Exception) {
+                maxId = row.id
+                continue
+            }
+            val ok = uploadService.tryUpload(url, token, batch)
+            if (ok) {
+                maxId = row.id
+            } else {
+                break
+            }
+        }
+        if (maxId > 0) dao.deleteUpTo(maxId)
     }
 }

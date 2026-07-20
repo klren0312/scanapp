@@ -29,8 +29,11 @@ data class ScanBatch(
 class UploadService(private val transport: UploadTransportLike) {
 
     fun buildPayload(batch: ScanBatch): String {
-        val wifi = batch.wifi.filter { it.lat != 0.0 || it.lng != 0.0 }
-        val bt = batch.bluetooth.filter { it.lat != 0.0 || it.lng != 0.0 }
+        // Drop sightings whose coordinates are both zero (invalid/no-fix). Either-axis zero,
+        // e.g. (0.0, 116.4), is NOT a valid fix either, so we reject when lat == 0 OR lng == 0
+        // to match the server's isInvalidCoord rule and avoid uploading rows the server will reject.
+        val wifi = batch.wifi.filter { it.lat != 0.0 && it.lng != 0.0 }
+        val bt = batch.bluetooth.filter { it.lat != 0.0 && it.lng != 0.0 }
         return Json.encodeToString(ScanBatch(batch.uploaderId, wifi, bt))
     }
 
