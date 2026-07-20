@@ -9,7 +9,7 @@
       <el-row :gutter="16">
         <el-col :span="6"><el-card><el-statistic title="设备总数" :value="stats.devices" /></el-card></el-col>
         <el-col :span="6"><el-card><el-statistic title="目击总数" :value="stats.sightings" /></el-card></el-col>
-        <el-col :span="6"><el-card><el-statistic title="重点设备" :value="stats.keyDevices" value-color="#f56c6c" /></el-card></el-col>
+        <el-col :span="6"><el-card><el-statistic title="重点设备" :value="stats.keyDevices" :value-style="{ color: '#f56c6c' }" /></el-card></el-col>
         <el-col :span="6"><el-card><el-statistic title="今日新增" :value="stats.todaySightings" /></el-card></el-col>
       </el-row>
       <el-card class="mt">
@@ -37,11 +37,16 @@ const keyList = ref([]);
 const loading = ref(false);
 
 async function load() {
-  stats.value = await api.getStats();
   loading.value = true;
   try {
-    const r = await api.getDevices({ keyOnly: '1', pageSize: 100 });
+    const [s, r] = await Promise.all([
+      api.getStats(),
+      api.getDevices({ keyOnly: '1', pageSize: 100 }),
+    ]);
+    stats.value = s;
     keyList.value = r.items;
+  } catch (e) {
+    console.error('dashboard load failed', e);
   } finally { loading.value = false; }
 }
 

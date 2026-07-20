@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { api } from '../api';
 import { loadAMap } from '../utils/amap';
@@ -45,6 +45,7 @@ const device = ref(null);
 const clusters = ref([]);
 const mapEl = ref(null);
 const loading = ref(false);
+let map = null;
 
 onMounted(async () => {
   loading.value = true;
@@ -54,12 +55,16 @@ onMounted(async () => {
     clusters.value = data.clusters;
     const traj = await api.getTrajectory(route.params.id);
     const AMap = await loadAMap();
-    const m = new AMap.Map(mapEl.value, { zoom: 12, center: traj.points.length ? [traj.points[0].lng, traj.points[0].lat] : [116.397, 39.908] });
+    map = new AMap.Map(mapEl.value, { zoom: 12, center: traj.points.length ? [traj.points[0].lng, traj.points[0].lat] : [116.397, 39.908] });
     if (traj.points.length) {
-      new AMap.Polyline({ path: traj.points.map((p) => [p.lng, p.lat]), strokeColor: '#f56c6c', strokeWeight: 4 }).setMap(m);
-      traj.points.forEach((p) => new AMap.Marker({ position: [p.lng, p.lat] }).setMap(m));
+      new AMap.Polyline({ path: traj.points.map((p) => [p.lng, p.lat]), strokeColor: '#f56c6c', strokeWeight: 4 }).setMap(map);
+      traj.points.forEach((p) => new AMap.Marker({ position: [p.lng, p.lat] }).setMap(map));
     }
   } finally { loading.value = false; }
+});
+
+onBeforeUnmount(() => {
+  if (map) { try { map.destroy(); } catch (e) {} map = null; }
 });
 </script>
 

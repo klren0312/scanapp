@@ -7,12 +7,12 @@
     </el-menu>
     <div class="body">
       <el-card>
-        <el-input v-model="keyword" placeholder="设备名/标识" style="width:220px" clearable @change="load" />
-        <el-select v-model="type" placeholder="类型" clearable style="width:140px;margin-left:8px" @change="load">
+        <el-input v-model="keyword" placeholder="设备名/标识" style="width:220px" clearable @change="() => load(true)" />
+        <el-select v-model="type" placeholder="类型" clearable style="width:140px;margin-left:8px" @change="() => load(true)">
           <el-option label="WiFi" value="wifi" />
           <el-option label="蓝牙" value="bluetooth" />
         </el-select>
-        <el-switch v-model="keyOnly" active-text="仅重点" style="margin-left:12px" @change="load" />
+        <el-switch v-model="keyOnly" active-text="仅重点" style="margin-left:12px" @change="() => load(true)" />
         <el-table :data="items" class="mt" @row-click="goDetail" v-loading="loading">
           <el-table-column prop="device_key" label="标识" />
           <el-table-column prop="name" label="名称" />
@@ -46,7 +46,8 @@ const type = ref('');
 const keyOnly = ref(false);
 const loading = ref(false);
 
-async function load() {
+async function load(resetPage = false) {
+  if (resetPage) page.value = 1;
   loading.value = true;
   try {
     const r = await api.getDevices({ keyword: keyword.value || undefined, type: type.value || undefined, keyOnly: keyOnly.value ? '1' : undefined, page: page.value, pageSize });

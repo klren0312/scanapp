@@ -36,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { api } from '../api';
 import { loadAMap } from '../utils/amap';
 
@@ -49,22 +49,48 @@ const drawer = ref(false);
 const detail = ref(null);
 let map = null;
 let markers = [];
+let trajMap = null;
 
 async function refresh() {
-  const { points } = await api.getMapPoints({ type: type.value || undefined, keyOnly: keyOnly.value ? '1' : undefined });
+  const { points } = await api.getMapPoints({
+    keyword: keyword.value || undefined,
+    type: type.value || undefined,
+    keyOnly: keyOnly.value ? '1' : undefined,
+  });
   if (!map) return;
   markers.forEach((m) => map.remove(m));
   markers = [];
   points.forEach((p) => {
     const color = p.isKey ? '#f56c6c' : p.type === 'wifi' ? '#409eff' : '#67c23a';
-    const m = new window.AMap.Marker({ position: [p.lng, p.lat], title: p.key, zIndex: p.isKey ? 100 : 1 });
+    const m = new window.AMap.Marker({
+      position: [p.lng, p.lat],
+      title: p.key,
+      zIndex: p.isKey ? 100 : 1,
+      icon: new window.AMap.Icon({
+        size: new window.AMap.Size(14, 14),
+        image: colorDot(color),
+        imageSize: new window.AMap.Size(14, 14),
+      }),
+    });
     m.setMap(map);
     m.on('click', () => openDetail(p.id));
     markers.push(m);
   });
 }
 
+// 14x14 solid-color PNG via data URL, used as a colored dot marker icon (AMap.Icon doesn't accept
+// raw colors). Returns a red/blue/green dot for wifi/bluetooth/key-device highlighting.
+function colorDot(color) {
+  const c = color.replace('#', '');
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14'><circle cx='7' cy='7' r='6' fill='rgb(${r},${g},${b})'/></svg>`;
+  return 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
 async function openDetail(id) {
+  if (trajMap) { trajMap.destroy(); trajMap = null; }
   const data = await api.getDevice(id);
   const traj = await api.getTrajectory(id);
   detail.value = data;
@@ -72,10 +98,10 @@ async function openDetail(id) {
   const AMap = window.AMap;
   setTimeout(() => {
     if (!trajEl.value) return;
-    const tm = new AMap.Map(trajEl.value, { zoom: 12, center: traj.points.length ? [traj.points[0].lng, traj.points[0].lat] : [116.397, 39.908] });
+    trajMap = new AMap.Map(trajEl.value, { zoom: 12, center: traj.points.length ? [traj.points[0].lng, traj.points[0].lat] : [116.397, 39.908] });
     if (traj.points.length) {
-      new AMap.Polyline({ path: traj.points.map((pt) => [pt.lng, pt.lat]), strokeColor: '#f56c6c', strokeWeight: 4 }).setMap(tm);
-      traj.points.forEach((pt) => new AMap.Marker({ position: [pt.lng, pt.lat] }).setMap(tm));
+      new AMap.Polyline({ path: traj.points.map((pt) => [pt.lng, pt.lat]), strokeColor: '#f56c6c', strokeWeight: 4 }).setMap(trajMap);
+      traj.points.forEach((pt) => new AMap.Marker({ position: [pt.lng, pt.lat] }).setMap(trajMap));
     }
   }, 50);
 }
@@ -86,6 +112,13 @@ onMounted(async () => {
   const AMap = await loadAMap();
   map = new AMap.Map(mapEl.value, { zoom: 11, center: [116.397, 39.908] });
   refresh();
+});
+
+onBeforeUnmount(() => {
+  markers.forEach((m) => { try { m.setMap(null); } catch (e) {} });
+  markers = [];
+  if (trajMap) { try { trajMap.destroy(); } catch (e) {} trajMap = null; }
+  if (map) { try { map.destroy(); } catch (e) {} map = null; }
 });
 </script>
 
