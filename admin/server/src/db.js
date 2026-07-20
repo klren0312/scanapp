@@ -9,7 +9,17 @@ function getPool() {
   if (!pool) {
     pool = mysql.createPool({ ...config.db, multipleStatements: true });
   }
+  if (pool && pool.closed) {
+    pool = mysql.createPool({ ...config.db, multipleStatements: true });
+  }
   return pool;
+}
+
+async function closePool() {
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
 }
 
 async function initSchema() {
@@ -19,4 +29,4 @@ async function initSchema() {
   await p.query(sql);
 }
 
-module.exports = { getPool, initSchema };
+module.exports = { getPool, initSchema, closePool };

@@ -4,7 +4,7 @@ const request = require('supertest');
 const express = require('express');
 const cors = require('cors');
 const { config } = require('../src/config');
-const { getPool, initSchema } = require('../src/db');
+const { getPool, initSchema, closePool } = require('../src/db');
 const { runSeed } = require('../src/seed');
 const { router: authRouter } = require('../src/auth');
 const { router: uploadRouter } = require('../src/routes/upload');
@@ -17,8 +17,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
-  const pool = getPool();
-  if (pool && pool.end) await pool.end();
+  await closePool();
 });
 
 function buildApp() {

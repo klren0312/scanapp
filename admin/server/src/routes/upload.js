@@ -11,19 +11,25 @@ function isInvalidCoord(lat, lng) {
 }
 
 async function getOrCreateDevice(p, type, key, name, extra, seenAt, lat, lng) {
-  const [existing] = await p.query('SELECT id FROM devices WHERE device_type = ? AND device_key = ?', [type, key]);
-  if (existing.length > 0) {
-    await p.query(
-      'UPDATE devices SET name=?, extra=?, last_seen=?, last_lat=?, last_lng=? WHERE id=?',
-      [name, extra, seenAt, lat, lng, existing[0].id]
-    );
-    return existing[0].id;
-  }
+  // INSERT ... ON DUPLICATE KEY UPDATE keeps the lookup-or-create atomic so concurrent uploads of
+  // the same new device can't both SELECT-miss and then one 500 on ER_DUP_ENTRY. first_seen only
+  // set on insert; last_seen/last_lat/last_lng advance only when this sighting is newer.
   const [r] = await p.query(
-    'INSERT INTO devices (device_type, device_key, name, extra, first_seen, last_seen, total_count, cluster_count, last_lat, last_lng) VALUES (?,?,?,?,?,?,0,0,?,?)',
+    `INSERT INTO devices (device_type, device_key, name, extra, first_seen, last_seen, total_count, cluster_count, is_key, last_lat, last_lng)
+     VALUES (?,?,?,?,?,?,0,0,0,?,?)
+     ON DUPLICATE KEY UPDATE
+       name = VALUES(name),
+       extra = VALUES(extra),
+       last_seen = GREATEST(last_seen, VALUES(last_seen)),
+       last_lat = IF(VALUES(last_seen) >= last_seen, VALUES(last_lat), last_lat),
+       last_lng = IF(VALUES(last_seen) >= last_seen, VALUES(last_lng), last_lng)`,
     [type, key, name, extra, seenAt, seenAt, lat, lng]
   );
-  return r.insertId;
+  // insertId is the existing row id for ON DUPLICATE KEY UPDATE on mysql2 when using
+  // `affectedRows`; fetch the id explicitly to be safe across versions.
+  if (r && r.insertId && r.affectedRows === 1) return r.insertId;
+  const [rows] = await p.query('SELECT id FROM devices WHERE device_type = ? AND device_key = ?', [type, key]);
+  return rows[0].id;
 }
 
 async function ingestBatch(p, type, items, uploaderId, radiusM) {

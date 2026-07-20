@@ -3,6 +3,8 @@ const assert = require('node:assert');
 const { assignToClusters, recomputeAll } = require('../src/cluster');
 const { getPool, initSchema } = require('../src/db');
 
+test.before(async () => { await initSchema(); });
+
 test('assignToClusters: two close points => 1 cluster', async () => {
   const p = getPool();
   await p.query('DELETE FROM device_clusters');
