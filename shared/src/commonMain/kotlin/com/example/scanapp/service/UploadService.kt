@@ -34,7 +34,7 @@ class UploadService(private val transport: UploadTransportLike) {
         // to match the server's isInvalidCoord rule and avoid uploading rows the server will reject.
         val wifi = batch.wifi.filter { it.lat != 0.0 && it.lng != 0.0 }
         val bt = batch.bluetooth.filter { it.lat != 0.0 && it.lng != 0.0 }
-        return Json.encodeToString(ScanBatch(batch.uploaderId, wifi, bt))
+        return Json.encodeToString(ScanBatch.serializer(), ScanBatch(batch.uploaderId, wifi, bt))
     }
 
     suspend fun tryUpload(serverUrl: String, token: String, batch: ScanBatch): Boolean {

@@ -61,7 +61,8 @@ fun <T : Any> MutableList<T>.diffUpdate(
     var i = 0
     var j = 0
     while (i < oldMiddleSize && j < newMiddleSize) {
-        if (equals(this[prefixSize + i], newList[prefixSize + j])) {
+        val isSame = equals(this[prefixSize + i], newList[prefixSize + j])
+        if (isSame) {
             ops.add(DiffOp.KEEP to null)
             i++
             j++

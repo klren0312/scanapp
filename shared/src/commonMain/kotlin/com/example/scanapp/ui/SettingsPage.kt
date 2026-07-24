@@ -19,7 +19,8 @@ import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.views.InputView
+import com.tencent.kuikly.core.views.Input
+import com.tencent.kuikly.core.views.InputParams
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -109,49 +110,52 @@ class SettingsPage : Pager() {
                             flexDirection(FlexDirection.COLUMN)
                         }
                         MdcCaption("Server URL")
-                        InputView {
+                        Input {
                             attr {
-                                this.value(uploadServerUrl)
+                                text(this@SettingsPage.uploadServerUrl)
                                 placeholder("https://admin.example.com/api/upload")
                                 fontSize(MdcTheme.Typography.bodyMedium)
                                 color(MdcTheme.Colors.onSurface)
                                 marginTop(MdcTheme.Spacing.xs)
                             }
                             event {
-                                input { v ->
-                                    uploadServerUrl = v
+                                textDidChange { params: InputParams ->
+                                    val v = params.text
+                                    this@SettingsPage.uploadServerUrl = v
                                     UploadSettings.serverUrl = v
                                 }
                             }
                         }
                         MdcCaption("Upload Token")
-                        InputView {
+                        Input {
                             attr {
-                                this.value(uploadToken)
+                                text(this@SettingsPage.uploadToken)
                                 placeholder("auth token")
                                 fontSize(MdcTheme.Typography.bodyMedium)
                                 color(MdcTheme.Colors.onSurface)
                                 marginTop(MdcTheme.Spacing.xs)
                             }
                             event {
-                                input { v ->
-                                    uploadToken = v
+                                textDidChange { params: InputParams ->
+                                    val v = params.text
+                                    this@SettingsPage.uploadToken = v
                                     UploadSettings.uploadToken = v
                                 }
                             }
                         }
                         MdcCaption("Uploader ID")
-                        InputView {
+                        Input {
                             attr {
-                                this.value(uploaderId)
+                                text(this@SettingsPage.uploaderId)
                                 placeholder("default")
                                 fontSize(MdcTheme.Typography.bodyMedium)
                                 color(MdcTheme.Colors.onSurface)
                                 marginTop(MdcTheme.Spacing.xs)
                             }
                             event {
-                                input { v ->
-                                    uploaderId = v
+                                textDidChange { params: InputParams ->
+                                    val v = params.text
+                                    this@SettingsPage.uploaderId = v
                                     UploadSettings.uploaderId = v
                                 }
                             }
@@ -162,8 +166,8 @@ class SettingsPage : Pager() {
                                 alignItems(FlexAlign.CENTER)
                                 marginTop(MdcTheme.Spacing.sm)
                             }
-                            MdcSwitch(uploadEnabled) { checked ->
-                                uploadEnabled = checked
+                            MdcSwitch(this@SettingsPage.uploadEnabled) { checked ->
+                                this@SettingsPage.uploadEnabled = checked
                                 UploadSettings.uploadEnabled = checked
                             }
                             Text {
